@@ -33,6 +33,7 @@ import org.eclipse.che.api.machine.server.spi.Instance;
 import org.eclipse.che.api.machine.server.spi.SnapshotDao;
 import org.eclipse.che.api.workspace.server.WorkspaceRuntimes.RuntimeDescriptor;
 import org.eclipse.che.api.workspace.server.event.WorkspaceCreatedEvent;
+import org.eclipse.che.api.workspace.server.model.impl.EnvironmentImpl;
 import org.eclipse.che.api.workspace.server.model.impl.WorkspaceConfigImpl;
 import org.eclipse.che.api.workspace.server.model.impl.WorkspaceImpl;
 import org.eclipse.che.api.workspace.server.model.impl.WorkspaceRuntimeImpl;
@@ -50,6 +51,8 @@ import org.slf4j.LoggerFactory;
 
 import javax.inject.Named;
 import javax.inject.Singleton;
+import java.net.URI;
+import java.net.URISyntaxException;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -57,12 +60,12 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.regex.Pattern;
 
 import static com.google.common.base.MoreObjects.firstNonNull;
 import static java.lang.Boolean.parseBoolean;
 import static java.lang.String.format;
 import static java.lang.System.currentTimeMillis;
-import static java.util.Arrays.asList;
 import static java.util.Collections.emptyMap;
 import static java.util.Comparator.comparing;
 import static java.util.Objects.requireNonNull;
@@ -101,12 +104,14 @@ public class WorkspaceManager {
     private final boolean           defaultAutoSnapshot;
     private final boolean           defaultAutoRestore;
     private final SnapshotDao       snapshotDao;
+    private final String            apiEndpoint;
 
     @Inject
     public WorkspaceManager(WorkspaceDao workspaceDao,
                             WorkspaceRuntimes workspaceRegistry,
                             EventService eventService,
                             AccountManager accountManager,
+                            @Named("che.api") String apiEndpoint,
                             @Named("che.workspace.auto_snapshot") boolean defaultAutoSnapshot,
                             @Named("che.workspace.auto_restore") boolean defaultAutoRestore,
                             SnapshotDao snapshotDao) {
@@ -117,6 +122,7 @@ public class WorkspaceManager {
         this.defaultAutoSnapshot = defaultAutoSnapshot;
         this.defaultAutoRestore = defaultAutoRestore;
         this.snapshotDao = snapshotDao;
+        this.apiEndpoint = apiEndpoint;
 
         executor = Executors.newCachedThreadPool(new ThreadFactoryBuilder().setNameFormat("WorkspaceManager-%d")
                                                                            .setDaemon(true)
@@ -861,7 +867,7 @@ public class WorkspaceManager {
         } else {
             workspace.setStatus(STOPPED);
         }
-        return workspace;
+        return absolutizeRecipeLink(workspace);
     }
 
     private WorkspaceImpl doCreateWorkspace(WorkspaceConfig config,
@@ -878,7 +884,7 @@ public class WorkspaceManager {
                                                      .setTemporary(isTemporary)
                                                      .build();
         workspace.getAttributes().put(CREATED_ATTRIBUTE_NAME, Long.toString(currentTimeMillis()));
-        workspaceDao.create(workspace);
+        workspaceDao.create(relativizeRecipeLink(workspace));
         LOG.info("Workspace '{}:{}' with id '{}' created by user '{}'",
                  account.getName(),
                  workspace.getConfig().getName(),
@@ -901,5 +907,35 @@ public class WorkspaceManager {
         final String wsName = parts[1];
         final String namespace = nsPart.isEmpty() ? sessionUser().getUserName() : nsPart;
         return workspaceDao.get(wsName, namespace);
+    }
+
+
+    private WorkspaceImpl absolutizeRecipeLink(WorkspaceImpl workspace) {
+        for (Map.Entry<String, EnvironmentImpl> entry : workspace.getConfig().getEnvironments().entrySet()) {
+            EnvironmentImpl environment = entry.getValue();
+            if (environment.getRecipe().getType().equals("dockerfile")) {
+                try {
+                    if (!new URI(environment.getRecipe().getLocation()).isAbsolute()) {
+                        environment.getRecipe().setLocation(apiEndpoint + environment.getRecipe().getLocation());
+                    }
+                } catch (URISyntaxException e) {
+                    continue;
+                }
+            }
+        }
+        return workspace;
+    }
+
+    private WorkspaceImpl relativizeRecipeLink(WorkspaceImpl workspace) {
+        for (Map.Entry<String, EnvironmentImpl> entry : workspace.getConfig().getEnvironments().entrySet()) {
+            EnvironmentImpl environment = entry.getValue();
+            if (environment.getRecipe().getType().equals("dockerfile")) {
+                String location = environment.getRecipe().getLocation();
+                if (location.startsWith(apiEndpoint)) {
+                    environment.getRecipe().setLocation(location.substring(apiEndpoint.length()));
+                }
+            }
+        }
+        return workspace;
     }
 }
