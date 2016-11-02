@@ -60,7 +60,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
-import java.util.regex.Pattern;
 
 import static com.google.common.base.MoreObjects.firstNonNull;
 import static java.lang.Boolean.parseBoolean;
@@ -884,7 +883,8 @@ public class WorkspaceManager {
                                                      .setTemporary(isTemporary)
                                                      .build();
         workspace.getAttributes().put(CREATED_ATTRIBUTE_NAME, Long.toString(currentTimeMillis()));
-        workspaceDao.create(relativizeRecipeLink(workspace));
+        WorkspaceImpl workspaceToPersist = relativizeRecipeLink(new WorkspaceImpl(workspace, workspace.getAccount()));
+        workspaceDao.create(workspaceToPersist);
         LOG.info("Workspace '{}:{}' with id '{}' created by user '{}'",
                  account.getName(),
                  workspace.getConfig().getName(),
