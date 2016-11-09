@@ -91,26 +91,26 @@ import static org.eclipse.che.ide.rest.HTTPHeader.CONTENTTYPE;
  */
 @Singleton
 public class GitServiceClientImpl implements GitServiceClient {
-    private static final String ADD         = "/git/add";
-    private static final String BRANCH      = "/git/branch";
-    private static final String CHECKOUT    = "/git/checkout";
-    private static final String CLONE       = "/git/clone";
-    private static final String COMMIT      = "/git/commit";
-    private static final String CONFIG      = "/git/config";
-    private static final String DIFF        = "/git/diff";
-    private static final String FETCH       = "/git/fetch";
-    private static final String INIT        = "/git/init";
-    private static final String LOG         = "/git/log";
-    private static final String SHOW        = "/git/show";
-    private static final String MERGE       = "/git/merge";
-    private static final String STATUS      = "/git/status";
-    private static final String PUSH        = "/git/push";
-    private static final String PULL        = "/git/pull";
-    private static final String REMOTE      = "/git/remote";
-    private static final String REMOVE      = "/git/remove";
-    private static final String RESET       = "/git/reset";
-    private static final String COMMITERS   = "/git/commiters";
-    private static final String REPOSITORY  = "/git/repository";
+    private static final String ADD        = "/git/add";
+    private static final String BRANCH     = "/git/branch";
+    private static final String CHECKOUT   = "/git/checkout";
+    private static final String CLONE      = "/git/clone";
+    private static final String COMMIT     = "/git/commit";
+    private static final String CONFIG     = "/git/config";
+    private static final String DIFF       = "/git/diff";
+    private static final String FETCH      = "/git/fetch";
+    private static final String INIT       = "/git/init";
+    private static final String LOG        = "/git/log";
+    private static final String SHOW       = "/git/show";
+    private static final String MERGE      = "/git/merge";
+    private static final String STATUS     = "/git/status";
+    private static final String PUSH       = "/git/push";
+    private static final String PULL       = "/git/pull";
+    private static final String REMOTE     = "/git/remote";
+    private static final String REMOVE     = "/git/remove";
+    private static final String RESET      = "/git/reset";
+    private static final String COMMITERS  = "/git/commiters";
+    private static final String REPOSITORY = "/git/repository";
 
     /** Loader to be displayed. */
     private final AsyncRequestLoader        loader;
@@ -840,20 +840,20 @@ public class GitServiceClientImpl implements GitServiceClient {
                                 String file,
                                 String version,
                                 @NotNull AsyncRequestCallback<ShowFileContentResponse> callback) {
-        String params = "?projectPath=" + project.getPath() + "&file=" + file + "&version=" + version ;
+        String params = "?projectPath=" + project.getPath() + "&file=" + file + "&version=" + version;
         String url = appContext.getDevMachine().getWsAgentBaseUrl() + SHOW + params;
         asyncRequestFactory.createGetRequest(url).loader(loader).send(callback);
     }
 
     @Override
     public Promise<ShowFileContentResponse> showFileContent(DevMachine devMachine, Path project, Path file, String version) {
-        String params = "?projectPath=" + project.toString() + "&file=" + file + "&version=" + version ;
+        String params = "?projectPath=" + project.toString() + "&file=" + file + "&version=" + version;
         String url = appContext.getDevMachine().getWsAgentBaseUrl() + SHOW + params;
         return asyncRequestFactory.createGetRequest(url)
                                   .loader(loader)
                                   .send(dtoUnmarshallerFactory.newUnmarshaller(ShowFileContentResponse.class));
     }
-    
+
     @Override
     public void merge(DevMachine devMachine,
                       ProjectConfigDto project,

@@ -1,5 +1,7 @@
 {
-  "name": "org.eclipse.che.ls.go",
+  "id": "org.eclipse.che.ls.go",
+  "name": "Go language server",
+  "description": "Go lang support",
   "dependencies": [],
   "properties": {
   },
