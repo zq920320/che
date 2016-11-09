@@ -54,6 +54,14 @@ import static org.eclipse.che.ide.api.parts.PartStackView.TabPosition.RIGHT;
 //TODO need rewrite this, remove direct dependency on PerspectiveViewImpl and other GWT Widgets
 public abstract class AbstractPerspective implements Presenter, Perspective, ActivePartChangedHandler {
 
+    private enum State {
+        NORMAL,
+        MAXIMIZED_LEFT_PART,
+        MAXIMIZED_RIGHT_PART,
+        MAXIMIZED_BOTTOM_PART,
+        MAXIMIZED_CENTRAL_PART
+    }
+
     protected final Map<PartStackType, PartStack> partStacks;
     protected final PerspectiveViewImpl           view;
 
@@ -66,6 +74,9 @@ public abstract class AbstractPerspective implements Presenter, Perspective, Act
     private double        leftPartSize;
     private double        rightPartSize;
     private double        belowPartSize;
+
+    private State         layoutState = State.NORMAL;
+
     private PartPresenter activePart;
     private PartPresenter activePartBeforeChangePerspective;
 
@@ -110,7 +121,6 @@ public abstract class AbstractPerspective implements Presenter, Perspective, Act
      */
     protected void openActivePart(@NotNull PartStackType partStackType) {
         PartStack partStack = partStacks.get(partStackType);
-
         partStack.openPreviousActivePart();
     }
 
@@ -127,7 +137,6 @@ public abstract class AbstractPerspective implements Presenter, Perspective, Act
     public void restoreState() {
         if (activePartBeforeChangePerspective != null) {
             setActivePart(activePartBeforeChangePerspective);
-
             activePartBeforeChangePerspective.restoreState();
         }
     }
@@ -158,6 +167,10 @@ public abstract class AbstractPerspective implements Presenter, Perspective, Act
     /** {@inheritDoc} */
     @Override
     public void maximizeCentralPart() {
+        if (layoutState == State.MAXIMIZED_CENTRAL_PART) {
+            return;
+        }
+
         leftPartSize = leftPartController.getSize();
         rightPartSize = rightPartController.getSize();
         belowPartSize = belowPartController.getSize();
@@ -165,11 +178,17 @@ public abstract class AbstractPerspective implements Presenter, Perspective, Act
         leftPartController.setHidden(true);
         rightPartController.setHidden(true);
         belowPartController.setHidden(true);
+
+        layoutState = State.MAXIMIZED_CENTRAL_PART;
     }
 
     /** {@inheritDoc} */
     @Override
     public void maximizeBottomPart() {
+        if (layoutState == State.MAXIMIZED_BOTTOM_PART) {
+            return;
+        }
+
         leftPartSize = leftPartController.getSize();
         rightPartSize = rightPartController.getSize();
         belowPartSize = belowPartController.getSize();
@@ -177,14 +196,22 @@ public abstract class AbstractPerspective implements Presenter, Perspective, Act
         leftPartController.setHidden(true);
         rightPartController.setHidden(true);
         belowPartController.maximize();
+
+        layoutState = State.MAXIMIZED_BOTTOM_PART;
     }
 
     /** {@inheritDoc} */
     @Override
     public void restoreParts() {
+        if (layoutState == State.NORMAL) {
+            return;
+        }
+
         leftPartController.setSize(leftPartSize);
         rightPartController.setSize(rightPartSize);
         belowPartController.setSize(belowPartSize);
+
+        layoutState = State.NORMAL;
     }
 
     /** {@inheritDoc} */
@@ -270,17 +297,21 @@ public abstract class AbstractPerspective implements Presenter, Perspective, Act
     private JsonObject getPartStackState(PartStack partStack, WorkBenchPartController partController) {
         JsonObject state = Json.createObject();
         state.put("SIZE", partController.getSize());
-        if (partStack.getActivePart() != null) {
-            state.put("ACTIVE_PART", partStack.getActivePart().getClass().getName());
-        }
-        state.put("HIDDEN", partController.isHidden());
-        JsonArray parts = Json.createArray();
-        state.put("PARTS", parts);
-        int i = 0;
-        for (PartPresenter entry : partStack.getParts()) {
-            JsonObject presenterState = Json.createObject();
-            presenterState.put("CLASS", entry.getClass().getName());
-            parts.set(i++, presenterState);
+        if (partStack.getParts().isEmpty()) {
+            state.put("HIDDEN", true);
+        } else {
+            if (partStack.getActivePart() != null) {
+                state.put("ACTIVE_PART", partStack.getActivePart().getClass().getName());
+            }
+            state.put("HIDDEN", partController.isHidden());
+            JsonArray parts = Json.createArray();
+            state.put("PARTS", parts);
+            int i = 0;
+            for (PartPresenter entry : partStack.getParts()) {
+                JsonObject presenterState = Json.createObject();
+                presenterState.put("CLASS", entry.getClass().getName());
+                parts.set(i++, presenterState);
+            }
         }
         return state;
     }
@@ -320,15 +351,15 @@ public abstract class AbstractPerspective implements Presenter, Perspective, Act
 
     private double restorePartController(PartStack stack, WorkBenchPartController controller, JsonObject partStack,
                                          List<PartPresenter> activeParts) {
-        if (partStack.hasKey("HIDDEN")) {
-            controller.setHidden(partStack.getBoolean("HIDDEN"));
-        }
         double size = 0;
         if (partStack.hasKey("SIZE")) {
             size = partStack.getNumber("SIZE");
             controller.setSize(size);
         }
 
+        if (partStack.hasKey("HIDDEN")) {
+            controller.setHidden(partStack.getBoolean("HIDDEN"));
+        }
 
         if (partStack.hasKey("PARTS")) {
             JsonArray parts = partStack.get("PARTS");
@@ -339,10 +370,17 @@ public abstract class AbstractPerspective implements Presenter, Perspective, Act
                     Provider<PartPresenter> provider = dynaProvider.getProvider(className);
                     if (provider != null) {
                         PartPresenter partPresenter = provider.get();
-                        stack.addPart(partPresenter);
+                        if (!stack.containsPart(partPresenter)) {
+                            stack.addPart(partPresenter);
+                        }
                     }
                 }
             }
+        }
+
+        //hide part stack if we cannot restore opened parts
+        if (stack.getParts().isEmpty()) {
+            controller.setHidden(true);
         }
 
         if (partStack.hasKey("ACTIVE_PART")) {
