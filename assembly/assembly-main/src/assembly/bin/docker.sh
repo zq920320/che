@@ -241,7 +241,8 @@ has_external_hostname() {
 responsible_shutdown() {
   echo ""
   echo "Received SIGTERM"
-  "${CHE_HOME}"/bin/che.sh stop
+  "${CHE_HOME}"/bin/che.sh stop &
+  wait ${PID}
   exit;
 }
 
@@ -257,8 +258,8 @@ init
 PID=$!
 
 # See: http://veithen.github.io/2014/11/16/sigterm-propagation.html
-wait $PID
-wait $PID
+wait ${PID}
+wait ${PID}
 EXIT_STATUS=$?
 
 # wait forever
