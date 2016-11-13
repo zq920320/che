@@ -241,7 +241,6 @@ has_external_hostname() {
 responsible_shutdown() {
   echo ""
   echo "Received SIGTERM"
-  "${CHE_HOME}"/bin/che.sh stop &
   wait ${PID}
   exit;
 }
