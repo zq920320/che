@@ -544,7 +544,7 @@ public interface Resource extends Comparable<Resource> {
      * @since 4.4.0
      */
     @Beta
-    interface Request<R extends Resource, O> {
+    interface Request<R, O> {
 
         /**
          * The body which is used to transform input data into request which is responsible for resource modification.

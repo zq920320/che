@@ -88,9 +88,15 @@ public final class ResourceChangedEvent extends GwtEvent<ResourceChangedEvent.Re
     }
 
     private ResourceDelta delta;
+    private Object        requestor;
 
     public ResourceChangedEvent(ResourceDelta delta) {
+        this(delta, null);
+    }
+
+    public ResourceChangedEvent(ResourceDelta delta, Object requestor) {
         this.delta = checkNotNull(delta, "Resource delta should not be a null");
+        this.requestor = requestor;
     }
 
     /**
@@ -102,6 +108,16 @@ public final class ResourceChangedEvent extends GwtEvent<ResourceChangedEvent.Re
      */
     public ResourceDelta getDelta() {
         return delta;
+    }
+
+    /**
+     * Returns the requestor object who was the initiator of the created event.
+     *
+     * @return any object who created this event. Maybe {@code null}.
+     * @since 5.0.0
+     */
+    public Object getRequestor() {
+        return requestor;
     }
 
     /** {@inheritDoc} */
