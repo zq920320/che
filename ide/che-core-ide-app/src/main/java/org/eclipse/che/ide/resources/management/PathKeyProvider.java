@@ -10,23 +10,21 @@
  *******************************************************************************/
 package org.eclipse.che.ide.resources.management;
 
-import com.google.common.annotations.Beta;
-import com.google.gwt.inject.client.AbstractGinModule;
-import com.google.inject.Singleton;
+import com.google.gwt.view.client.ProvidesKey;
+
+import org.eclipse.che.ide.resource.Path;
 
 /**
- * Gin module for configuring resource management component.
- *
- * TODO: component should be included when resource management will be refactored
+ * Unique key provider for the given path.
+ * Default implementation is based on the generating unique key identifier using path hashcode value.
  *
  * @author Vlad Zhukovskyi
+ * @see HashCodeBasedKeyProvider
+ * @see ProvidesKey
+ * @see Path
  * @since 5.0.0
  */
-@Beta
-public class ResourceManagerModule extends AbstractGinModule {
+public interface PathKeyProvider extends ProvidesKey<Path> {
     @Override
-    protected void configure() {
-        bind(PathKeyProvider.class).to(HashCodeBasedKeyProvider.class).in(Singleton.class);
-        bind(ResourceStorage.class).to(MemoryResourceStorage.class).in(Singleton.class);
-    }
+    Integer getKey(Path item);
 }
