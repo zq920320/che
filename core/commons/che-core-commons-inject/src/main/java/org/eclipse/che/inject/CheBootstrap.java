@@ -13,6 +13,7 @@ package org.eclipse.che.inject;
 import com.google.common.base.Splitter;
 import com.google.common.io.Files;
 import com.google.inject.AbstractModule;
+import com.google.inject.Binder;
 import com.google.inject.Injector;
 import com.google.inject.Module;
 import com.google.inject.name.Names;
@@ -24,6 +25,7 @@ import org.eclipse.che.inject.lifecycle.DestroyErrorHandler;
 import org.eclipse.che.inject.lifecycle.DestroyModule;
 import org.eclipse.che.inject.lifecycle.Destroyer;
 import org.eclipse.che.inject.lifecycle.InitModule;
+import org.eclipse.che.inject.lifecycle.ProfilerListener;
 import org.everrest.guice.servlet.EverrestGuiceContextListener;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -50,7 +52,6 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 import static java.util.stream.Collectors.toList;
-import static java.util.stream.Collectors.toMap;
 import static java.util.stream.Collectors.toSet;
 
 /**
@@ -134,11 +135,19 @@ public class CheBootstrap extends EverrestGuiceContextListener {
         modules.add(new StringArrayConverter());
         modules.add(new PairConverter());
         modules.add(new PairArrayConverter());
+        modules.add(new Module() {
+            @Override
+            public void configure(Binder binder) {
+                binder.bindListener(com.google.inject.matcher.Matchers.any(), new ProfilerListener());
+            }
+        });
         modules.addAll(ModuleScanner.findModules());
         Map<String, Set<String>> aliases = readConfigurationAliases();
         Module firstConfigurationPermutation = Modules.override(new WebInfConfiguration(aliases)).with(new ExtConfiguration(aliases));
-        Module secondConfigurationPermutation = Modules.override(firstConfigurationPermutation).with(new CheSystemPropertiesConfigurationModule(aliases));
-        Module lastConfigurationPermutation = Modules.override(secondConfigurationPermutation).with(new CheEnvironmentVariablesConfigurationModule(aliases));
+        Module secondConfigurationPermutation =
+                Modules.override(firstConfigurationPermutation).with(new CheSystemPropertiesConfigurationModule(aliases));
+        Module lastConfigurationPermutation =
+                Modules.override(secondConfigurationPermutation).with(new CheEnvironmentVariablesConfigurationModule(aliases));
         modules.add(lastConfigurationPermutation);
         return modules;
     }
@@ -268,7 +277,8 @@ public class CheBootstrap extends EverrestGuiceContextListener {
         }
     }
 
-    static class EnvironmentVariableToSystemPropertyFormatNameConverter implements Function<Map.Entry<String, String>, Map.Entry<String, String>> {
+    static class EnvironmentVariableToSystemPropertyFormatNameConverter
+            implements Function<Map.Entry<String, String>, Map.Entry<String, String>> {
         @Override
         public Map.Entry<String, String> apply(Map.Entry<String, String> entry) {
             String name = entry.getKey();
@@ -353,10 +363,13 @@ public class CheBootstrap extends EverrestGuiceContextListener {
                                 buf.append(resolvedPlaceholder);
                             } else if (skipUnresolved) {
                                 buf.append(placeholder);
-                                LOG.warn("Placeholder {} cannot be resolved neither from environment variable nor from system property, leaving as is.", placeholderName);
+                                LOG.warn(
+                                        "Placeholder {} cannot be resolved neither from environment variable nor from system property, leaving as is.",
+                                        placeholderName);
                             } else {
                                 throw new ConfigurationException(
-                                        String.format("Property %s is not found as system property or environment variable.", placeholderName));
+                                        String.format("Property %s is not found as system property or environment variable.",
+                                                      placeholderName));
                             }
 
                             start = matcher.end();
@@ -376,7 +389,8 @@ public class CheBootstrap extends EverrestGuiceContextListener {
                 bind(String.class).annotatedWith(Names.named(key)).toProvider(Providers.<String>of(null));
                 if (aliasesForName != null) {
                     for (String alias : aliasesForName) {
-                        bind(String.class).annotatedWith(Names.named(prefix == null ? alias : prefix + alias)).toProvider(Providers.<String>of(null));
+                        bind(String.class).annotatedWith(Names.named(prefix == null ? alias : prefix + alias))
+                                          .toProvider(Providers.<String>of(null));
                     }
                 }
             } else {

@@ -10,6 +10,9 @@
  *******************************************************************************/
 package org.eclipse.che.inject.lifecycle;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.lang.reflect.Method;
 
 /**
@@ -18,6 +21,7 @@ import java.lang.reflect.Method;
  * @author andrew00x
  */
 public interface DestroyErrorHandler {
+
     void onError(Object instance, Method method, Throwable error);
 
     /**
@@ -25,8 +29,11 @@ public interface DestroyErrorHandler {
      * javax.annotation.PreDestroy}.
      */
     DestroyErrorHandler DUMMY = new DestroyErrorHandler() {
+        private final Logger LOG = LoggerFactory.getLogger(DestroyErrorHandler.class);
+
         @Override
         public void onError(Object instance, Method method, Throwable error) {
+            LOG.error(error.getLocalizedMessage(), error);
         }
     };
 }

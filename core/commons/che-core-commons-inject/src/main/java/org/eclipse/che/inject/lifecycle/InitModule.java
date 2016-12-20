@@ -17,6 +17,9 @@ import com.google.inject.spi.InjectionListener;
 import com.google.inject.spi.TypeEncounter;
 import com.google.inject.spi.TypeListener;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.lang.annotation.Annotation;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
@@ -24,6 +27,8 @@ import java.lang.reflect.Method;
 /** @author andrew00x */
 public final class InitModule extends LifecycleModule {
     private final Class<? extends Annotation> annotationType;
+
+    private static final Logger LOG = LoggerFactory.getLogger(InitModule.class);
 
     public InitModule(Class<? extends Annotation> annotationType) {
         this.annotationType = annotationType;
@@ -40,8 +45,11 @@ public final class InitModule extends LifecycleModule {
                         final Method[] methods = get(injectee.getClass(), annotationType);
                         if (methods.length > 0) {
                             for (Method method : methods) {
+                                long time = System.currentTimeMillis();
                                 try {
+
                                     method.invoke(injectee);
+
                                 } catch (IllegalArgumentException e) {
                                     // method MUST NOT have any parameters
                                     throw new ProvisionException(e.getMessage(), e);
@@ -51,6 +59,9 @@ public final class InitModule extends LifecycleModule {
                                     final Throwable cause = e.getTargetException();
                                     throw new ProvisionException(String.format("Invocation error of method %s on %s", method, injectee),
                                                                  cause);
+                                } finally {
+                                    LOG.info("Init time for class {} is {} msec", injectee.getClass().getName(),
+                                             System.currentTimeMillis() - time);
                                 }
                             }
                         }

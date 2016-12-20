@@ -10,6 +10,9 @@
  *******************************************************************************/
 package org.eclipse.che.inject.lifecycle;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.util.Map;
@@ -17,6 +20,9 @@ import java.util.WeakHashMap;
 
 /** @author andrew00x */
 public final class Destroyer {
+
+    private static final Logger LOG = LoggerFactory.getLogger(Destroyer.class);
+
     // Don't prevent instance from being discarded by the garbage collector.
     private final WeakHashMap<Object, Method[]> map;
     private final DestroyErrorHandler           errorHandler;
@@ -38,6 +44,7 @@ public final class Destroyer {
                 final Object instance = entry.getKey();
                 final Method[] methods = entry.getValue();
                 for (Method method : methods) {
+                    long time = System.currentTimeMillis();
                     try {
                         method.invoke(instance);
                     } catch (IllegalArgumentException e) {
@@ -47,6 +54,10 @@ public final class Destroyer {
                         errorHandler.onError(instance, method, e);
                     } catch (InvocationTargetException e) {
                         errorHandler.onError(instance, method, e.getTargetException());
+                    } finally {
+                        LOG.info("Destroy time for class {} method {} is {} msec", methods.getClass().getName(), method.getName(),
+                                 System.currentTimeMillis() - time);
+
                     }
                 }
             }
