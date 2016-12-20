@@ -9,6 +9,7 @@
  *   Codenvy, S.A. - initial API and implementation
  */
 'use strict';
+import {IEnvironmentManagerMachine} from './environment-manager-machine';
 
 /**
  * This is base class, which describes the environment manager.
@@ -19,7 +20,7 @@ const WS_AGENT_NAME: string = 'org.eclipse.che.ws-agent';
 const TERMINAL_AGENT_NAME: string = 'org.eclipse.che.terminal';
 const SSH_AGENT_NAME: string = 'org.eclipse.che.ssh';
 
-export class EnvironmentManager {
+export abstract class EnvironmentManager {
 
   constructor() { }
 
@@ -35,6 +36,10 @@ export class EnvironmentManager {
     return false;
   }
 
+  canAddMachine(machine: any): boolean {
+    return false;
+  }
+
   canEditEnvVariables(machine: any): boolean {
     return false;
   }
@@ -42,45 +47,43 @@ export class EnvironmentManager {
   /**
    * Retrieves the list of machines.
    *
-   * @param {*} environment
-   * @returns {Array} list of machines defined in environment
+   * @param {che.IWorkspaceEnvironment} environment
+   * @returns {IEnvironmentManagerMachine[]} list of machines defined in environment
    */
-  getMachines(environment: any): any[] {
-    return [];
-  }
+  abstract getMachines(environment: che.IWorkspaceEnvironment): IEnvironmentManagerMachine[];
 
   /**
    * Renames machine.
    *
-   * @param environment {object}
-   * @param oldName {string}
-   * @param newName {string}
+   * @param {che.IWorkspaceEnvironment} environment
+   * @param {string} oldName
+   * @param {string} newName
    */
-  renameMachine(environment: any, oldName: string, newName: string): void {
+  renameMachine(environment: che.IWorkspaceEnvironment, oldName: string, newName: string): void {
     throw new TypeError('EnvironmentManager: cannot rename machine.');
   }
 
   /**
    * Removes machine.
    *
-   * @param environment {object}
-   * @param name {string} name of machine
+   * @param {che.IWorkspaceEnvironment} environment
+   * @param {string} name name of machine
    */
-  deleteMachine(environment: any, name: string): void {
+  deleteMachine(environment: che.IWorkspaceEnvironment, name: string): void {
     throw new TypeError('EnvironmentManager: cannot delete machine.');
   }
 
   /**
    * Provides the environment configuration based on machines format.
    *
-   * @param environment origin of the environment to be edited
-   * @param machines the list of machines
-   * @returns environment's configuration
+   * @param {che.IWorkspaceEnvironment} environment origin of the environment to be edited
+   * @param {IEnvironmentManagerMachine} machines the list of machines
+   * @returns {che.IWorkspaceEnvironment} environment's configuration
    */
-  getEnvironment(environment: any, machines: any): any {
+  getEnvironment(environment: che.IWorkspaceEnvironment, machines: IEnvironmentManagerMachine[]): che.IWorkspaceEnvironment {
     let newEnvironment = angular.copy(environment);
 
-    machines.forEach((machine) => {
+    machines.forEach((machine: IEnvironmentManagerMachine) => {
       let machineName = machine.name;
 
       if (angular.isUndefined(newEnvironment.machines)) {
@@ -100,20 +103,20 @@ export class EnvironmentManager {
   /**
    * Returns whether machine is developer or not.
    *
-   * @param machine
+   * @param {IEnvironmentManagerMachine} machine
    * @returns {boolean}
    */
-  isDev(machine: any): boolean {
+  isDev(machine: IEnvironmentManagerMachine): boolean {
     return machine.agents && machine.agents.indexOf(WS_AGENT_NAME) >= 0;
   }
 
   /**
    * Set machine as developer one - contains 'ws-agent' agent.
    *
-   * @param machine machine to edit
+   * @param {IEnvironmentManagerMachine} machine machine to edit
    * @param isDev defined whether machine is developer or not
    */
-  setDev(machine: any, isDev: boolean): void {
+  setDev(machine: IEnvironmentManagerMachine, isDev: boolean): void {
     let hasWsAgent = this.isDev(machine);
     if (isDev) {
       machine.agents = machine.agents ? machine.agents : [];
@@ -153,10 +156,10 @@ export class EnvironmentManager {
   /**
    * Returns memory limit from machine's attributes
    *
-   * @param machine
+   * @param {IEnvironmentManagerMachine} machine
    * @returns {number|string} memory limit in bytes
    */
-  getMemoryLimit(machine: any): number|string {
+  getMemoryLimit(machine: IEnvironmentManagerMachine): number|string {
     if (machine && machine.attributes && machine.attributes.memoryLimitBytes) {
       return machine.attributes.memoryLimitBytes;
     }
@@ -168,15 +171,15 @@ export class EnvironmentManager {
    * Sets the memory limit of the pointed machine.
    * Value in attributes has the highest priority,
    *
-   * @param machine machine to change memory limit
+   * @param {IEnvironmentManagerMachine} machine machine to change memory limit
    * @param limit memory limit
    */
-  setMemoryLimit(machine: any, limit: number): void {
+  setMemoryLimit(machine: IEnvironmentManagerMachine, limit: number): void {
     machine.attributes = machine.attributes ? machine.attributes : {};
     machine.attributes.memoryLimitBytes = limit;
   }
 
-  getEnvVariables(machine: any): any {
+  getEnvVariables(machine: IEnvironmentManagerMachine): any {
     return null;
   }
 }

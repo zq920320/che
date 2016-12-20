@@ -79,13 +79,39 @@ declare namespace _che {
   export interface IWorkspaceConfig {
     name?: string;
     defaultEnv?: string;
-    environments?: IWorkspaceEnvironments;
+    environments?: {
+      [envName: string]: IWorkspaceEnvironment
+    };
     projects: Array <any>;
     commands?: Array <any>;
   }
 
-  export interface IWorkspaceEnvironments {
-      [envName: string]: any;
+  export interface IWorkspaceEnvironment {
+    recipe: {
+      content?: string;
+      location?: string;
+    };
+    machines: {
+      [machineName: string]: IWorkspaceEnvironmentMachine
+    };
+    [envName: string]: any;
+  }
+
+  export interface IWorkspaceEnvironmentMachine {
+    attributes?: {
+      memoryLimitBytes?: number|string;
+      [attrName: string]: any;
+    };
+    agents?: string[];
+    servers?: {
+      [serverName: string]: IWorkspaceEnvironmentMachineServer
+    };
+  }
+
+  export interface IWorkspaceEnvironmentMachineServer {
+    port: number|string;
+    properties?: any;
+    protocol: string;
   }
 
   export interface IProject {
@@ -125,5 +151,4 @@ declare namespace _che {
       options: Array<any>;
     };
   }
-
 }

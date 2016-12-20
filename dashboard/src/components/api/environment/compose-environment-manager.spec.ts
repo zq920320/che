@@ -11,6 +11,7 @@
 'use strict';
 
 import {ComposeEnvironmentManager} from './compose-environment-manager';
+import {IEnvironmentManagerMachine} from './environment-manager-machine';
 
 /**
  * Test the environment manager for compose based recipes
@@ -68,16 +69,80 @@ describe('ComposeEnvironmentManager', () => {
       });
     }));
 
-    it('should be allowed rename machine', () => {
+    it('should be allowed to rename machine', () => {
       let canRenameMachine = envManager.canRenameMachine(testMachine);
 
       expect(canRenameMachine).toBe(true);
     });
 
-    it('should be allowed delete machine', () => {
+    it('should rename machine if new name does not exists in environment', () => {
+      let machines = envManager.getMachines(environment),
+          machinesNumberBefore = machines.length,
+          machine = machines[0],
+          oldName = machine.name,
+          newName = 'new-name';
+
+      let newEnvironment = envManager.renameMachine(environment, oldName, newName);
+      machines = envManager.getMachines(newEnvironment);
+
+      let machinesNumberAfter = machines.length,
+          isThereOldMachine = machines.some((machine: IEnvironmentManagerMachine) => {
+            return machine.name === oldName;
+          }), isThereNewMachine = machines.some((machine: IEnvironmentManagerMachine) => {
+            return machine.name === newName;
+          });
+
+      expect(isThereOldMachine).toBeFalsy();
+      expect(isThereNewMachine).toBeTruthy();
+      expect(machinesNumberBefore).toEqual(machinesNumberAfter);
+    });
+
+    it('should be allowed to delete machine', () => {
       let canDeleteMachine = envManager.canDeleteMachine(testMachine);
 
       expect(canDeleteMachine).toBe(true);
+    });
+
+    it('should delete machine', () => {
+      let machines = envManager.getMachines(environment),
+          machinesNumberBefore = machines.length,
+          machineToDelete = machines[0],
+          nameToDelete = machineToDelete.name;
+
+      let newEnvironment = envManager.deleteMachine(environment, nameToDelete);
+      machines = envManager.getMachines(newEnvironment);
+
+      let machinesNumberAfter = machines.length,
+          isThereDeletedMachine = machines.some((machine: IEnvironmentManagerMachine) => {
+            return machine.name === nameToDelete;
+          });
+
+      expect(isThereDeletedMachine).toBeFalsy();
+      expect(machinesNumberBefore - machinesNumberAfter).toEqual(1);
+    });
+
+    it('should be allowed to add a machine', () => {
+      let canDeleteMachine = envManager.canDeleteMachine(testMachine);
+
+      expect(canDeleteMachine).toBe(true);
+    });
+
+    it('should add a machine', () => {
+      let machines = envManager.getMachines(environment),
+          machinesNumberBefore = machines.length,
+          newMachineName = 'new-machine-name',
+          newMachineRecipe = `${newMachineName}:\n image: codenvy/ubuntu_jdk8\n mem_limit: 2147483648`;
+
+      let newEnvironment = envManager.addMachine(environment, newMachineRecipe);
+      machines = envManager.getMachines(newEnvironment);
+
+      let machinesNumberAfter = machines.length,
+          isThereNewMachine = machines.some((machine: IEnvironmentManagerMachine) => {
+            return machine.name === newMachineName;
+          });
+
+      expect(isThereNewMachine).toBeTruthy();
+      expect(machinesNumberAfter - machinesNumberBefore).toEqual(1);
     });
 
     it('should be allowed edit environment variables', () => {

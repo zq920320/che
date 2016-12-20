@@ -12,6 +12,7 @@
 
 import {EnvironmentManager} from './environment-manager';
 import {DockerfileParser} from './docker-file-parser';
+import {EnvironmentManagerMachine, IEnvironmentManagerMachine} from './environment-manager-machine';
 
 /**
  * This is the implementation of environment manager that handles the docker file format of environment.
@@ -89,11 +90,11 @@ export class DockerFileEnvironmentManager extends EnvironmentManager {
   /**
    * Provides the environment configuration based on machines format.
    *
-   * @param environment origin of the environment to be edited
-   * @param machines the list of machines
-   * @returns environment's configuration
+   * @param {che.IWorkspaceEnvironment} environment origin of the environment to be edited
+   * @param {IEnvironmentManagerMachine[]} machines the list of machines
+   * @returns {che.IWorkspaceEnvironment} environment's configuration
    */
-  getEnvironment(environment: any, machines: any): any {
+  getEnvironment(environment: che.IWorkspaceEnvironment, machines: IEnvironmentManagerMachine[]): che.IWorkspaceEnvironment {
     let newEnvironment = super.getEnvironment(environment, machines);
 
     // machines should contain one machine only
@@ -111,21 +112,29 @@ export class DockerFileEnvironmentManager extends EnvironmentManager {
   /**
    * Retrieves the list of machines.
    *
-   * @param environment environment's configuration
-   * @returns {Array} list of machines defined in environment
+   * @param {che.IWorkspaceEnvironment} environment environment's configuration
+   * @returns {IEnvironmentManagerMachine[]} list of machines defined in environment
    */
-  getMachines(environment: any): any[] {
+  getMachines(environment: che.IWorkspaceEnvironment): IEnvironmentManagerMachine[] {
     let recipe = null,
-        machines = [];
+        machines: IEnvironmentManagerMachine[] = [];
 
     if (environment.recipe.content) {
       recipe = this._parseRecipe(environment.recipe.content);
     }
 
     Object.keys(environment.machines).forEach((machineName: string) => {
-      let machine = angular.copy(environment.machines[machineName]);
-      machine.name = machineName;
-      machine.recipe = recipe;
+      let envMachine = angular.copy(environment.machines[machineName]),
+          machine = new EnvironmentManagerMachine(machineName, recipe);
+      if (envMachine.attributes) {
+        machine.attributes = angular.copy(envMachine.attributes);
+      }
+      if (envMachine.agents) {
+        machine.agents = angular.copy(envMachine.agents);
+      }
+      if (envMachine.servers) {
+        machine.servers = angular.copy(envMachine.servers);
+      }
 
       machines.push(machine);
     });
@@ -136,10 +145,10 @@ export class DockerFileEnvironmentManager extends EnvironmentManager {
   /**
    * Returns a docker image from the recipe.
    *
-   * @param machine
+   * @param {IEnvironmentManagerMachine} machine
    * @returns {*}
    */
-  getSource(machine: any): any {
+  getSource(machine: IEnvironmentManagerMachine): {image: string} {
     if (!machine.recipe) {
       return null;
     }
@@ -154,20 +163,20 @@ export class DockerFileEnvironmentManager extends EnvironmentManager {
   /**
    * Returns true if environment recipe content is present.
    *
-   * @param machine {object}
+   * @param {IEnvironmentManagerMachine} machine
    * @returns {boolean}
    */
-  canEditEnvVariables(machine: any): boolean {
+  canEditEnvVariables(machine: IEnvironmentManagerMachine): boolean {
     return !!machine.recipe;
   }
 
   /**
    * Returns environment variables from recipe
    *
-   * @param machine {object}
+   * @param {IEnvironmentManagerMachine} machine
    * @returns {*}
    */
-  getEnvVariables(machine: any): any {
+  getEnvVariables(machine: IEnvironmentManagerMachine): any {
     if (!machine.recipe) {
       return null;
     }
@@ -188,10 +197,10 @@ export class DockerFileEnvironmentManager extends EnvironmentManager {
   /**
    * Updates machine with new environment variables.
    *
-   * @param machine {object}
-   * @param envVariables {object}
+   * @param {IEnvironmentManagerMachine} machine
+   * @param {*} envVariables
    */
-  setEnvVariables(machine: any, envVariables: any): void {
+  setEnvVariables(machine: IEnvironmentManagerMachine, envVariables: any): void {
     if (!machine.recipe) {
       return;
     }
