@@ -537,13 +537,22 @@ class JGitConnection implements GitConnection {
                 throw new GitException("Committer can't be null");
             }
 
-            //Check that there are staged changes present for commit, or any changes if is 'isAll' enabled, otherwise throw exception
             Status status = status(StatusFormat.SHORT);
-            if (!params.isAmend() && !params.isAll()
-                && status.getAdded().isEmpty() && status.getChanged().isEmpty() && status.getRemoved().isEmpty()) {
-                throw new GitException("No changes added to commit");
-            } else if (!params.isAmend() && params.isAll() && status.isClean()) {
+            List<String> staged = new ArrayList<>();
+            staged.addAll(status.getAdded());
+            staged.addAll(status.getChanged());
+            staged.addAll(status.getRemoved());
+            List<String> specified = params.getFiles();
+
+            // Check that there are staged changes present for commit, or any changes if is 'isAll' enabled,
+            // otherwise throw exception if 'isAmend' disabled
+            if (!params.isAmend() && status.isClean()) {
                 throw new GitException("Nothing to commit, working directory clean");
+            } else if (!params.isAmend() &&
+                       !params.isAll() &&
+                       (specified.isEmpty() ? staged.isEmpty()
+                                            : specified.stream().noneMatch(path -> staged.stream().anyMatch(s -> s.startsWith(path))))) {
+                throw new GitException("No changes added to commit");
             }
 
             String committerName = committer.getName();
@@ -564,14 +573,28 @@ class JGitConnection implements GitConnection {
             }
 
             CommitCommand commitCommand = getGit().commit()
+                                                  .setAllowEmpty(true)
                                                   .setCommitter(committerName, committerEmail).setAuthor(committerName, committerEmail)
                                                   .setMessage(message)
                                                   .setAll(params.isAll())
                                                   .setAmend(params.isAmend());
 
-            if (!params.isAll()) {
-                params.getFiles().forEach(commitCommand::setOnly);
+            /*
+            When committing specified paths that are not staged in index, JGitInternalException will be thrown on call().
+            According to setAllowEmpty method documentation, setting this flag to true must allow such commit,
+            but it won't because Jgit has a bug: https://bugs.eclipse.org/bugs/show_bug.cgi?id=510685.
+            As a workaround do not add not staged paths to specified paths of the commit command, and throw exception if other staged
+            changes are present but specified paths list is cleared after filtering, to prevent committing other staged paths.
+            TODO Remove filtering of unstaged specified paths and throwing exception when the bug will be fixed.
+            */
+            List<String> specifiedStaged = specified.stream()
+                                                    .filter(path -> staged.stream().anyMatch(s -> s.startsWith(path)))
+                                                    .collect(Collectors.toList());
+            if (!specified.isEmpty() && !staged.isEmpty() && specifiedStaged.isEmpty()) {
+                throw new GitException(format("Staged changes are present but unstaged path%s specified for commit.",
+                                              specified.size() > 1 ? "s were" : " was"));
             }
+            specifiedStaged.forEach(commitCommand::setOnly);
 
             // Check if repository is configured with Gerrit Support
             String gerritSupportConfigValue = repository.getConfig().getString(ConfigConstants.CONFIG_GERRIT_SECTION, null,
