@@ -585,13 +585,12 @@ class JGitConnection implements GitConnection {
             When committing specified paths that are not staged in index, JGitInternalException will be thrown on call().
             According to setAllowEmpty method documentation, setting this flag to true must allow such commit,
             but it won't because Jgit has a bug: https://bugs.eclipse.org/bugs/show_bug.cgi?id=510685.
-            As a workaround, add only staged and specified paths to specified paths of the commit command, and throw exception, if other
-            staged changes are present but the list of staged and specified paths is empty, to prevent committing other staged paths.
-            TODO Remove exception when the bug will be fixed.
+            As a workaround, add only staged and specified paths to specified paths of the commit command.
+            If not all specified paths are staged in the index, throw exception to prevent committing not all specified paths.
+            TODO Remove throwing exception when the bug will be fixed.
             */
-            if (!specified.isEmpty() && !staged.isEmpty() && specifiedStaged.isEmpty()) {
-                throw new GitException(format("Staged changes are present but unstaged path%s specified for commit.",
-                                              specified.size() > 1 ? "s were" : " was"));
+            if (!staged.isEmpty() && !staged.containsAll(specified)) {
+                throw new GitException(format("Unstaged path%s specified for commit.", specified.size() > 1 ? "s were" : " was"));
             }
             // TODO change to 'specified.forEach(commitCommand::setOnly)' when the bug will be fixed.
             specifiedStaged.forEach(commitCommand::setOnly);
