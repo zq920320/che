@@ -543,15 +543,15 @@ class JGitConnection implements GitConnection {
             staged.addAll(status.getChanged());
             staged.addAll(status.getRemoved());
             List<String> specified = params.getFiles();
+            List<String> specifiedStaged = specified.stream()
+                                                    .filter(path -> staged.stream().anyMatch(s -> s.startsWith(path)))
+                                                    .collect(Collectors.toList());
 
             // Check that there are staged changes present for commit, or any changes if is 'isAll' enabled,
             // otherwise throw exception if 'isAmend' disabled
             if (!params.isAmend() && status.isClean()) {
                 throw new GitException("Nothing to commit, working directory clean");
-            } else if (!params.isAmend() &&
-                       !params.isAll() &&
-                       (specified.isEmpty() ? staged.isEmpty()
-                                            : specified.stream().noneMatch(path -> staged.stream().anyMatch(s -> s.startsWith(path))))) {
+            } else if (!params.isAmend() && !params.isAll() && (specified.isEmpty() ? staged.isEmpty() : specifiedStaged.isEmpty())) {
                 throw new GitException("No changes added to commit");
             }
 
@@ -583,17 +583,15 @@ class JGitConnection implements GitConnection {
             When committing specified paths that are not staged in index, JGitInternalException will be thrown on call().
             According to setAllowEmpty method documentation, setting this flag to true must allow such commit,
             but it won't because Jgit has a bug: https://bugs.eclipse.org/bugs/show_bug.cgi?id=510685.
-            As a workaround do not add not staged paths to specified paths of the commit command, and throw exception if other staged
-            changes are present but specified paths list is cleared after filtering, to prevent committing other staged paths.
-            TODO Remove filtering of unstaged specified paths and throwing exception when the bug will be fixed.
+            As a workaround, add only staged and specified paths to specified paths of the commit command, and throw exception, if other
+            staged changes are present but the list of staged and specified paths is empty, to prevent committing other staged paths.
+            TODO Remove exception when the bug will be fixed.
             */
-            List<String> specifiedStaged = specified.stream()
-                                                    .filter(path -> staged.stream().anyMatch(s -> s.startsWith(path)))
-                                                    .collect(Collectors.toList());
             if (!specified.isEmpty() && !staged.isEmpty() && specifiedStaged.isEmpty()) {
                 throw new GitException(format("Staged changes are present but unstaged path%s specified for commit.",
                                               specified.size() > 1 ? "s were" : " was"));
             }
+            // TODO change to 'specified.forEach(commitCommand::setOnly)' when the bug will be fixed.
             specifiedStaged.forEach(commitCommand::setOnly);
 
             // Check if repository is configured with Gerrit Support
