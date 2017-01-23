@@ -589,7 +589,7 @@ class JGitConnection implements GitConnection {
             If not all specified paths are staged in the index, throw exception to prevent committing not all specified paths.
             TODO Remove throwing exception when the bug will be fixed.
             */
-            if (!staged.isEmpty() && !staged.containsAll(specified)) {
+            if (!specified.containsAll(specifiedStaged)) {
                 throw new GitException(format("Unstaged path%s specified for commit.", specified.size() > 1 ? "s were" : " was"));
             }
             // TODO change to 'specified.forEach(commitCommand::setOnly)' when the bug will be fixed.
