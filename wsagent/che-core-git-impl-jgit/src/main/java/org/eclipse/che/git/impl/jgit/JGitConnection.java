@@ -547,12 +547,14 @@ class JGitConnection implements GitConnection {
                                                     .filter(path -> staged.stream().anyMatch(s -> s.startsWith(path)))
                                                     .collect(Collectors.toList());
 
-            // Check that there are staged changes present for commit, or any changes if is 'isAll' enabled,
-            // otherwise throw exception if 'isAmend' disabled
-            if (!params.isAmend() && status.isClean()) {
-                throw new GitException("Nothing to commit, working directory clean");
-            } else if (!params.isAmend() && !params.isAll() && (specified.isEmpty() ? staged.isEmpty() : specifiedStaged.isEmpty())) {
-                throw new GitException("No changes added to commit");
+            // Check that there are changes present for commit, if 'isAmend' is disabled
+            if (!params.isAmend()) {
+                // Check that there are staged changes present for commit, or any changes if 'isAll' is enabled
+                if (status.isClean()) {
+                    throw new GitException("Nothing to commit, working directory clean");
+                } else if (!params.isAll() && (specified.isEmpty() ? staged.isEmpty() : specifiedStaged.isEmpty())) {
+                    throw new GitException("No changes added to commit");
+                }
             }
 
             String committerName = committer.getName();
