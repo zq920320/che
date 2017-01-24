@@ -186,15 +186,13 @@ public class CommitTest {
     }
 
     @Test(dataProvider = "GitConnectionFactory", dataProviderClass = org.eclipse.che.git.impl.GitConnectionFactoryProvider.class,
-          expectedExceptions = GitException.class, expectedExceptionsMessageRegExp = "No changes added to commit")
-    public void testCommitWithSpecifiedNotStagedChanges(GitConnectionFactory connectionFactory) throws GitException, IOException {
+          expectedExceptions = GitException.class,
+          expectedExceptionsMessageRegExp = "error: pathspec 'newFile' did not match any file.* known to git\\.\n")
+    public void testCommitWithSpecifiedUntrackedChanges(GitConnectionFactory connectionFactory) throws GitException, IOException {
         //given
         GitConnection connection = connectToGitRepositoryWithContent(connectionFactory, repository);
-        //Prepare unstaged new file that will be present in specified paths for commit
+        //Prepare untracked file that will be present in specified paths for commit
         addFile(connection, "newFile", "content");
-        //Prepare staged editing that will not be present in specified paths for commit
-        write(new File(connection.getWorkingDir(), "README.txt").toPath(), "new content".getBytes());
-        connection.add(AddParams.create(ImmutableList.of("README.txt")));
 
         //when
         connection.commit(CommitParams.create("test commit").withFiles(singletonList("newFile")));

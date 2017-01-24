@@ -180,6 +180,7 @@ import static java.nio.file.attribute.PosixFilePermission.OWNER_READ;
 import static java.nio.file.attribute.PosixFilePermission.OWNER_WRITE;
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
 import static java.util.concurrent.TimeUnit.SECONDS;
+import static java.util.stream.Collectors.joining;
 import static org.eclipse.che.api.git.shared.BranchListMode.LIST_ALL;
 import static org.eclipse.che.api.git.shared.BranchListMode.LIST_LOCAL;
 import static org.eclipse.che.api.git.shared.BranchListMode.LIST_REMOTE;
@@ -543,16 +544,29 @@ class JGitConnection implements GitConnection {
             staged.addAll(status.getChanged());
             staged.addAll(status.getRemoved());
             List<String> specified = params.getFiles();
-            List<String> specifiedStaged = specified.stream()
-                                                    .filter(path -> staged.stream().anyMatch(s -> s.startsWith(path)))
-                                                    .collect(Collectors.toList());
+            List<String> changed = new ArrayList<>(staged);
+            changed.addAll(status.getModified());
+            changed.addAll(status.getMissing());
+            List<String> specifiedChanged = specified.stream()
+                                                     .filter(path -> changed.stream().anyMatch(c -> c.startsWith(path)))
+                                                     .collect(Collectors.toList());
+
+            // Check that specified paths don't contain untracked paths
+            String specifiedUntrackedError = specified.stream()
+                                                      .filter(path -> status.getUntracked().stream().anyMatch(u -> u.startsWith(path)))
+                                                      .map(path -> format("error: pathspec '%s' did not match any file(s) known to git.\n",
+                                                                          path))
+                                                      .collect(joining());
+            if (!specifiedUntrackedError.isEmpty()) {
+                throw new GitException(specifiedUntrackedError);
+            }
 
             // Check that there are changes present for commit, if 'isAmend' is disabled
             if (!params.isAmend()) {
                 // Check that there are staged changes present for commit, or any changes if 'isAll' is enabled
                 if (status.isClean()) {
                     throw new GitException("Nothing to commit, working directory clean");
-                } else if (!params.isAll() && (specified.isEmpty() ? staged.isEmpty() : specifiedStaged.isEmpty())) {
+                } else if (!params.isAll() && (specified.isEmpty() ? staged.isEmpty() : specifiedChanged.isEmpty())) {
                     throw new GitException("No changes added to commit");
                 }
             }
@@ -575,25 +589,27 @@ class JGitConnection implements GitConnection {
             }
 
             CommitCommand commitCommand = getGit().commit()
-                                                  .setAllowEmpty(true)
-                                                  .setCommitter(committerName, committerEmail).setAuthor(committerName, committerEmail)
+                                                  .setAllowEmpty(params.isAmend())
+                                                  .setCommitter(committerName, committerEmail)
+                                                  .setAuthor(committerName, committerEmail)
                                                   .setMessage(message)
                                                   .setAll(params.isAll())
                                                   .setAmend(params.isAmend());
 
             /*
-            When committing specified paths that are not staged in index, JGitInternalException will be thrown on call().
+            When committing  with amend flag specified paths that don't have any changes, JGitInternalException will be thrown.
             According to setAllowEmpty method documentation, setting this flag to true must allow such commit,
             but it won't because Jgit has a bug: https://bugs.eclipse.org/bugs/show_bug.cgi?id=510685.
-            As a workaround, add only staged and specified paths to specified paths of the commit command.
-            If not all specified paths are staged in the index, throw exception to prevent committing not all specified paths.
+            As a workaround, add only changed and specified paths to specified paths of the commit command, and throw exception, if other
+            staged changes are present but the list of changed and specified paths is empty, to prevent committing other staged paths.
             TODO Remove throwing exception when the bug will be fixed.
             */
-            if (!specified.containsAll(specifiedStaged)) {
-                throw new GitException(format("Unstaged path%s specified for commit.", specified.size() > 1 ? "s were" : " was"));
+            if (!specified.isEmpty() && !(params.isAll() ? changed.isEmpty() : staged.isEmpty()) && specifiedChanged.isEmpty()) {
+                throw new GitException(format("Changes are present but not changed path%s specified for commit.",
+                                              specified.size() > 1 ? "s were" : " was"));
             }
             // TODO change to 'specified.forEach(commitCommand::setOnly)' when the bug will be fixed.
-            specifiedStaged.forEach(commitCommand::setOnly);
+            specifiedChanged.forEach(commitCommand::setOnly);
 
             // Check if repository is configured with Gerrit Support
             String gerritSupportConfigValue = repository.getConfig().getString(ConfigConstants.CONFIG_GERRIT_SECTION, null,
