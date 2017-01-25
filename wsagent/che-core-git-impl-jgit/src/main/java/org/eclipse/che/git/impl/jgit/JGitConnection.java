@@ -181,6 +181,7 @@ import static java.nio.file.attribute.PosixFilePermission.OWNER_WRITE;
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
 import static java.util.concurrent.TimeUnit.SECONDS;
 import static java.util.stream.Collectors.joining;
+import static java.util.stream.Collectors.toList;
 import static org.eclipse.che.api.git.shared.BranchListMode.LIST_ALL;
 import static org.eclipse.che.api.git.shared.BranchListMode.LIST_LOCAL;
 import static org.eclipse.che.api.git.shared.BranchListMode.LIST_REMOTE;
@@ -552,13 +553,12 @@ class JGitConnection implements GitConnection {
                                                      .collect(Collectors.toList());
 
             // Check that specified paths don't contain untracked paths
-            String specifiedUntrackedError = specified.stream()
-                                                      .filter(path -> status.getUntracked().stream().anyMatch(u -> u.startsWith(path)))
-                                                      .map(path -> format("error: pathspec '%s' did not match any file(s) known to git.\n",
-                                                                          path))
-                                                      .collect(joining());
-            if (!specifiedUntrackedError.isEmpty()) {
-                throw new GitException(specifiedUntrackedError);
+            String errorMessage = specified.stream()
+                                           .filter(path -> status.getUntracked().stream().anyMatch(u -> u.startsWith(path)))
+                                           .map(path -> format("error: pathspec '%s' did not match any file(s) known to git.\n", path))
+                                           .collect(joining());
+            if (!errorMessage.isEmpty()) {
+                throw new GitException(errorMessage);
             }
 
             // Check that there are changes present for commit, if 'isAmend' is disabled
@@ -600,8 +600,8 @@ class JGitConnection implements GitConnection {
             When committing  with amend flag specified paths that don't have any changes, JGitInternalException will be thrown.
             According to setAllowEmpty method documentation, setting this flag to true must allow such commit,
             but it won't because Jgit has a bug: https://bugs.eclipse.org/bugs/show_bug.cgi?id=510685.
-            As a workaround, add only changed and specified paths to specified paths of the commit command, and throw exception, if other
-            staged changes are present but the list of changed and specified paths is empty, to prevent committing other staged paths.
+            As a workaround, add only changed and specified paths to specified paths of the commit command, and throw exception,
+            if other changes are present, but the list of changed and specified paths is empty, to prevent committing other paths.
             TODO Remove throwing exception when the bug will be fixed.
             */
             if (!specified.isEmpty() && !(params.isAll() ? changed.isEmpty() : staged.isEmpty()) && specifiedChanged.isEmpty()) {
