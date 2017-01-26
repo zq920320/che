@@ -530,27 +530,33 @@ class JGitConnection implements GitConnection {
     @Override
     public Revision commit(CommitParams params) throws GitException {
         try {
-            String message = params.getMessage();
-            GitUser committer = getUser();
-            if (message == null) {
-                throw new GitException("Message wasn't set");
+            // Check repository state
+            if (!repository.getRepositoryState().canCommit()) {
+                throw new GitException(format(MESSAGE_COMMIT_NOT_POSSIBLE, repository.getRepositoryState().getDescription()));
             }
+            if (params.isAmend() && !repository.getRepositoryState().canAmend()) {
+                throw new GitException(format(MESSAGE_COMMIT_AMEND_NOT_POSSIBLE, repository.getRepositoryState().getDescription()));
+            }
+
+            // Check username and email
+            GitUser committer = getUser();
             if (committer == null) {
                 throw new GitException("Committer can't be null");
             }
+            String committerName = committer.getName();
+            String committerEmail = committer.getEmail();
+            if (committerName == null || committerEmail == null) {
+                throw new GitException("Git user name and (or) email wasn't set", ErrorCodes.NO_COMMITTER_NAME_OR_EMAIL_DEFINED);
+            }
+
+            // Check commit message
+            String message = params.getMessage();
+            if (message == null) {
+                throw new GitException("Message wasn't set");
+            }
 
             Status status = status(StatusFormat.SHORT);
-            List<String> staged = new ArrayList<>();
-            staged.addAll(status.getAdded());
-            staged.addAll(status.getChanged());
-            staged.addAll(status.getRemoved());
             List<String> specified = params.getFiles();
-            List<String> changed = new ArrayList<>(staged);
-            changed.addAll(status.getModified());
-            changed.addAll(status.getMissing());
-            List<String> specifiedChanged = specified.stream()
-                                                     .filter(path -> changed.stream().anyMatch(c -> c.startsWith(path)))
-                                                     .collect(Collectors.toList());
 
             // Check that specified paths don't contain untracked paths
             String errorMessage = specified.stream()
@@ -561,6 +567,17 @@ class JGitConnection implements GitConnection {
                 throw new GitException(errorMessage);
             }
 
+            List<String> staged = new ArrayList<>();
+            staged.addAll(status.getAdded());
+            staged.addAll(status.getChanged());
+            staged.addAll(status.getRemoved());
+            List<String> changed = new ArrayList<>(staged);
+            changed.addAll(status.getModified());
+            changed.addAll(status.getMissing());
+            List<String> specifiedChanged = specified.stream()
+                                                     .filter(path -> changed.stream().anyMatch(c -> c.startsWith(path)))
+                                                     .collect(Collectors.toList());
+
             // Check that there are changes present for commit, if 'isAmend' is disabled
             if (!params.isAmend()) {
                 // Check that there are staged changes present for commit, or any changes if 'isAll' is enabled
@@ -569,46 +586,29 @@ class JGitConnection implements GitConnection {
                 } else if (!params.isAll() && (specified.isEmpty() ? staged.isEmpty() : specifiedChanged.isEmpty())) {
                     throw new GitException("No changes added to commit");
                 }
-            }
-
-            String committerName = committer.getName();
-            String committerEmail = committer.getEmail();
-            if (committerName == null || committerEmail == null) {
-                throw new GitException("Git user name and (or) email wasn't set", ErrorCodes.NO_COMMITTER_NAME_OR_EMAIL_DEFINED);
-            }
-            if (!repository.getRepositoryState().canCommit()) {
-                Revision rev = newDto(Revision.class);
-                rev.setMessage(format(MESSAGE_COMMIT_NOT_POSSIBLE, repository.getRepositoryState().getDescription()));
-                return rev;
-            }
-
-            if (params.isAmend() && !repository.getRepositoryState().canAmend()) {
-                Revision rev = newDto(Revision.class);
-                rev.setMessage(format(MESSAGE_COMMIT_AMEND_NOT_POSSIBLE, repository.getRepositoryState().getDescription()));
-                return rev;
+            /*
+            By default Jgit doesn't allow to commit not changed specified paths. According to setAllowEmpty method documentation,
+            setting this flag to true must allow such commit, but it won't because Jgit has a bug:
+            https://bugs.eclipse.org/bugs/show_bug.cgi?id=510685. As a workaround, specified paths of the commit command will contain
+            only changed and specified paths. If other changes are present, but the list of changed and specified paths is empty,
+            throw exception to prevent committing other paths. TODO Remove this check when the bug will be fixed.
+            */
+            } else if (!specified.isEmpty() && !(params.isAll() ? changed.isEmpty() : staged.isEmpty()) && specifiedChanged.isEmpty()) {
+                throw new GitException(format("Changes are present but not changed path%s specified for commit.",
+                                              specified.size() > 1 ? "s were" : " was"));
             }
 
             CommitCommand commitCommand = getGit().commit()
-                                                  .setAllowEmpty(params.isAmend())
                                                   .setCommitter(committerName, committerEmail)
                                                   .setAuthor(committerName, committerEmail)
                                                   .setMessage(message)
                                                   .setAll(params.isAll())
-                                                  .setAmend(params.isAmend());
+                                                  .setAmend(params.isAmend())
+                                                  // Allow empty commits with specified paths with amend
+                                                  .setAllowEmpty(params.isAmend());
 
-            /*
-            When committing  with amend flag specified paths that don't have any changes, JGitInternalException will be thrown.
-            According to setAllowEmpty method documentation, setting this flag to true must allow such commit,
-            but it won't because Jgit has a bug: https://bugs.eclipse.org/bugs/show_bug.cgi?id=510685.
-            As a workaround, add only changed and specified paths to specified paths of the commit command, and throw exception,
-            if other changes are present, but the list of changed and specified paths is empty, to prevent committing other paths.
-            TODO Remove throwing exception when the bug will be fixed.
-            */
-            if (!specified.isEmpty() && !(params.isAll() ? changed.isEmpty() : staged.isEmpty()) && specifiedChanged.isEmpty()) {
-                throw new GitException(format("Changes are present but not changed path%s specified for commit.",
-                                              specified.size() > 1 ? "s were" : " was"));
-            }
-            // TODO change to 'specified.forEach(commitCommand::setOnly)' when the bug will be fixed.
+            // TODO change to 'specified.forEach(commitCommand::setOnly)' when https://bugs.eclipse.org/bugs/show_bug.cgi?id=510685 be fixed
+            // See description above.
             specifiedChanged.forEach(commitCommand::setOnly);
 
             // Check if repository is configured with Gerrit Support
@@ -621,7 +621,8 @@ class JGitConnection implements GitConnection {
 
             return newDto(Revision.class).withBranch(getCurrentBranch())
                                          .withId(result.getId().getName()).withMessage(result.getFullMessage())
-                                         .withCommitTime(MILLISECONDS.convert(result.getCommitTime(), SECONDS)).withCommitter(gitUser);
+                                         .withCommitTime(MILLISECONDS.convert(result.getCommitTime(), SECONDS))
+                                         .withCommitter(gitUser);
         } catch (GitAPIException exception) {
             throw new GitException(exception.getMessage(), exception);
         }
