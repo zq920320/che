@@ -316,32 +316,6 @@
             <scope>test</scope>
         </dependency>
     </dependencies>
-    <profiles>
-        <profile>
-            <id>windows</id>
-            <plugin>
-                <groupId>org.apache.maven.plugins</groupId>
-                <artifactId>maven-war-plugin</artifactId>
-                <configuration>
-                    <packagingExcludes>%regex[WEB-INF\/lib\/(?!.*j2ee).*.jar]</packagingExcludes>
-                    <attachClasses>true</attachClasses>
-                </configuration>
-            </plugin>
-        </profile>
-    </profiles>
-    <profiles>
-        <profile>
-            <id>unix</id>
-            <plugin>
-                <groupId>org.apache.maven.plugins</groupId>
-                <artifactId>maven-war-plugin</artifactId>
-                <configuration>
-                    <packagingExcludes>%regex[WEB-INF\/lib\/(?!.*j2ee).*.jar]</packagingExcludes>
-                    <attachClasses>true</attachClasses>
-                </configuration>
-            </plugin>
-        </profile>
-    </profiles>
     <build>
         <resources>
             <resource>
@@ -522,4 +496,36 @@
             </plugin>
         </plugins>
     </build>
+    <profiles>
+        <profile>
+            <id>windows</id>
+            <build>
+                <plugins>
+                    <plugin>
+                        <groupId>org.apache.maven.plugins</groupId>
+                        <artifactId>maven-war-plugin</artifactId>
+                        <configuration>
+                            <packagingExcludes>%regex[WEB-INF\\lib\\(?!.*j2ee).*.jar]</packagingExcludes>
+                            <attachClasses>true</attachClasses>
+                        </configuration>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
+        <profile>
+            <id>unix</id>
+            <build>
+                <plugins>
+                    <plugin>
+                        <groupId>org.apache.maven.plugins</groupId>
+                        <artifactId>maven-war-plugin</artifactId>
+                        <configuration>
+                            <packagingExcludes>%regex[WEB-INF\/lib\/(?!.*j2ee).*.jar]</packagingExcludes>
+                            <attachClasses>true</attachClasses>
+                        </configuration>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
+    </profiles>
 </project>
