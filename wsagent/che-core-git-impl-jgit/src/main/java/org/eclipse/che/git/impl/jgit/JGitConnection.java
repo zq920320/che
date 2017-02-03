@@ -538,7 +538,7 @@ class JGitConnection implements GitConnection {
                 throw new GitException(format(MESSAGE_COMMIT_AMEND_NOT_POSSIBLE, repository.getRepositoryState().getDescription()));
             }
 
-            // Check username and email
+            // Check committer
             GitUser committer = getUser();
             if (committer == null) {
                 throw new GitException("Committer can't be null");
