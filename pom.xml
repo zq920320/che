@@ -16,11 +16,11 @@
     <parent>
         <artifactId>maven-depmgt-pom</artifactId>
         <groupId>org.eclipse.che.depmgt</groupId>
-        <version>5.2.0-SNAPSHOT</version>
+        <version>5.3.0-SNAPSHOT</version>
     </parent>
     <groupId>org.eclipse.che</groupId>
     <artifactId>che-parent</artifactId>
-    <version>5.2.0-SNAPSHOT</version>
+    <version>5.3.0-SNAPSHOT</version>
     <packaging>pom</packaging>
     <name>Che Parent</name>
     <modules>
@@ -41,9 +41,9 @@
         <url>https://github.com/eclipse/che</url>
     </scm>
     <properties>
-        <che.docs.version>5.2.0-SNAPSHOT</che.docs.version>
-        <che.lib.version>5.2.0-SNAPSHOT</che.lib.version>
-        <che.version>5.2.0-SNAPSHOT</che.version>
+        <che.docs.version>5.3.0-SNAPSHOT</che.docs.version>
+        <che.lib.version>5.3.0-SNAPSHOT</che.lib.version>
+        <che.version>5.3.0-SNAPSHOT</che.version>
         <specification.version>1.0-beta2</specification.version>
     </properties>
     <dependencyManagement>
@@ -58,6 +58,12 @@
                 <groupId>org.eclipse.che</groupId>
                 <artifactId>assembly-ide-war</artifactId>
                 <version>${che.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.eclipse.che</groupId>
+                <artifactId>assembly-ide-war</artifactId>
+                <version>${che.version}</version>
+                <classifier>classes</classifier>
             </dependency>
             <dependency>
                 <groupId>org.eclipse.che</groupId>
@@ -293,6 +299,26 @@
             </dependency>
             <dependency>
                 <groupId>org.eclipse.che.core</groupId>
+                <artifactId>che-core-api-system</artifactId>
+                <version>${che.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.eclipse.che.core</groupId>
+                <artifactId>che-core-api-system-shared</artifactId>
+                <version>${che.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.eclipse.che.core</groupId>
+                <artifactId>che-core-api-testing</artifactId>
+                <version>${che.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.eclipse.che.core</groupId>
+                <artifactId>che-core-api-testing-shared</artifactId>
+                <version>${che.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.eclipse.che.core</groupId>
                 <artifactId>che-core-api-user</artifactId>
                 <version>${project.version}</version>
                 <classifier>tests</classifier>
@@ -466,56 +492,6 @@
                 <groupId>org.eclipse.che.lib</groupId>
                 <artifactId>org-eclipse-jdt-core-repack</artifactId>
                 <version>${che.lib.version}</version>
-            </dependency>
-            <dependency>
-                <groupId>org.eclipse.che.plugin</groupId>
-                <artifactId>che-java-testing-classpath-maven-server</artifactId>
-                <version>${che.version}</version>
-            </dependency>
-            <dependency>
-                <groupId>org.eclipse.che.plugin</groupId>
-                <artifactId>che-java-testing-core-ide</artifactId>
-                <version>${che.version}</version>
-            </dependency>
-            <dependency>
-                <groupId>org.eclipse.che.plugin</groupId>
-                <artifactId>che-java-testing-core-server</artifactId>
-                <version>${che.version}</version>
-            </dependency>
-            <dependency>
-                <groupId>org.eclipse.che.plugin</groupId>
-                <artifactId>che-java-testing-core-shared</artifactId>
-                <version>${che.version}</version>
-            </dependency>
-            <dependency>
-                <groupId>org.eclipse.che.plugin</groupId>
-                <artifactId>che-java-testing-junit-ide</artifactId>
-                <version>${che.version}</version>
-            </dependency>
-            <dependency>
-                <groupId>org.eclipse.che.plugin</groupId>
-                <artifactId>che-java-testing-junit-server</artifactId>
-                <version>${che.version}</version>
-            </dependency>
-            <dependency>
-                <groupId>org.eclipse.che.plugin</groupId>
-                <artifactId>che-java-testing-junit-shared</artifactId>
-                <version>${che.version}</version>
-            </dependency>
-            <dependency>
-                <groupId>org.eclipse.che.plugin</groupId>
-                <artifactId>che-java-testing-testng-ide</artifactId>
-                <version>${che.version}</version>
-            </dependency>
-            <dependency>
-                <groupId>org.eclipse.che.plugin</groupId>
-                <artifactId>che-java-testing-testng-server</artifactId>
-                <version>${che.version}</version>
-            </dependency>
-            <dependency>
-                <groupId>org.eclipse.che.plugin</groupId>
-                <artifactId>che-java-testing-testng-shared</artifactId>
-                <version>${che.version}</version>
             </dependency>
             <dependency>
                 <groupId>org.eclipse.che.plugin</groupId>
@@ -754,6 +730,11 @@
             </dependency>
             <dependency>
                 <groupId>org.eclipse.che.plugin</groupId>
+                <artifactId>che-plugin-openshift-client</artifactId>
+                <version>${che.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.eclipse.che.plugin</groupId>
                 <artifactId>che-plugin-orion-compare</artifactId>
                 <version>${che.version}</version>
             </dependency>
@@ -846,6 +827,41 @@
             <dependency>
                 <groupId>org.eclipse.che.plugin</groupId>
                 <artifactId>che-plugin-svn-ext-shared</artifactId>
+                <version>${che.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.eclipse.che.plugin</groupId>
+                <artifactId>che-plugin-testing-classpath-maven-server</artifactId>
+                <version>${che.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.eclipse.che.plugin</groupId>
+                <artifactId>che-plugin-testing-classpath-server</artifactId>
+                <version>${che.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.eclipse.che.plugin</groupId>
+                <artifactId>che-plugin-testing-ide</artifactId>
+                <version>${che.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.eclipse.che.plugin</groupId>
+                <artifactId>che-plugin-testing-junit-ide</artifactId>
+                <version>${che.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.eclipse.che.plugin</groupId>
+                <artifactId>che-plugin-testing-junit-server</artifactId>
+                <version>${che.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.eclipse.che.plugin</groupId>
+                <artifactId>che-plugin-testing-testng-ide</artifactId>
+                <version>${che.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.eclipse.che.plugin</groupId>
+                <artifactId>che-plugin-testing-testng-server</artifactId>
                 <version>${che.version}</version>
             </dependency>
             <dependency>
