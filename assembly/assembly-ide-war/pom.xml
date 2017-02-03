@@ -316,6 +316,32 @@
             <scope>test</scope>
         </dependency>
     </dependencies>
+    <profiles>
+        <profile>
+            <id>windows</id>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-war-plugin</artifactId>
+                <configuration>
+                    <packagingExcludes>%regex[WEB-INF\/lib\/(?!.*j2ee).*.jar]</packagingExcludes>
+                    <attachClasses>true</attachClasses>
+                </configuration>
+            </plugin>
+        </profile>
+    </profiles>
+    <profiles>
+        <profile>
+            <id>unix</id>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-war-plugin</artifactId>
+                <configuration>
+                    <packagingExcludes>%regex[WEB-INF\/lib\/(?!.*j2ee).*.jar]</packagingExcludes>
+                    <attachClasses>true</attachClasses>
+                </configuration>
+            </plugin>
+        </profile>
+    </profiles>
     <build>
         <resources>
             <resource>
@@ -456,14 +482,6 @@
                         </configuration>
                     </execution>
                 </executions>
-            </plugin>
-            <plugin>
-                <groupId>org.apache.maven.plugins</groupId>
-                <artifactId>maven-war-plugin</artifactId>
-                <configuration>
-                    <packagingExcludes>%regex[WEB-INF\/lib\/(?!.*j2ee).*.jar]</packagingExcludes>
-                    <attachClasses>true</attachClasses>
-                </configuration>
             </plugin>
             <plugin>
                 <groupId>org.codehaus.mojo</groupId>
