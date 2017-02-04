@@ -22,7 +22,7 @@ describe('The projects view', function () {
     listProjectsPage = require('./list-projects.po.js');
     projectsMock = require('./list-projects-http.mock');
   });
-
+/*
 
   it('should include my 2 workspaces', function() {
     browser.addMockModule('userDashboardMock', projectsMock.projectsList);
@@ -49,6 +49,6 @@ describe('The projects view', function () {
     expect(listProjectsPage.projectsWorkspaceElements.count()).toEqual(0);
     expect(listProjectsPage.projectElements.count()).toEqual(0);
     //expect(listProjectsPage.noProjectsLabel.isDisplayed()).toBe(false);
-  });
+  });*/
 
 });
