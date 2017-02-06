@@ -531,11 +531,12 @@ class JGitConnection implements GitConnection {
     public Revision commit(CommitParams params) throws GitException {
         try {
             // Check repository state
-            if (!repository.getRepositoryState().canCommit()) {
-                throw new GitException(format(MESSAGE_COMMIT_NOT_POSSIBLE, repository.getRepositoryState().getDescription()));
+            RepositoryState repositoryState = repository.getRepositoryState();
+            if (!repositoryState.canCommit()) {
+                throw new GitException(format(MESSAGE_COMMIT_NOT_POSSIBLE, repositoryState.getDescription()));
             }
-            if (params.isAmend() && !repository.getRepositoryState().canAmend()) {
-                throw new GitException(format(MESSAGE_COMMIT_AMEND_NOT_POSSIBLE, repository.getRepositoryState().getDescription()));
+            if (params.isAmend() && !repositoryState.canAmend()) {
+                throw new GitException(format(MESSAGE_COMMIT_AMEND_NOT_POSSIBLE, repositoryState.getDescription()));
             }
 
             // Check committer
@@ -586,28 +587,29 @@ class JGitConnection implements GitConnection {
                 } else if (!params.isAll() && (specified.isEmpty() ? staged.isEmpty() : specifiedChanged.isEmpty())) {
                     throw new GitException("No changes added to commit");
                 }
-            /*
-            By default Jgit doesn't allow to commit not changed specified paths. According to setAllowEmpty method documentation,
-            setting this flag to true must allow such commit, but it won't because Jgit has a bug:
-            https://bugs.eclipse.org/bugs/show_bug.cgi?id=510685. As a workaround, specified paths of the commit command will contain
-            only changed and specified paths. If other changes are present, but the list of changed and specified paths is empty,
-            throw exception to prevent committing other paths. TODO Remove this check when the bug will be fixed.
-            */
-            } else if (!specified.isEmpty() && !(params.isAll() ? changed.isEmpty() : staged.isEmpty()) && specifiedChanged.isEmpty()) {
-                throw new GitException(format("Changes are present but not changed path%s specified for commit.",
-                                              specified.size() > 1 ? "s were" : " was"));
+            } else {
+                /*
+                By default Jgit doesn't allow to commit not changed specified paths. According to setAllowEmpty method documentation,
+                setting this flag to true must allow such commit, but it won't because Jgit has a bug:
+                https://bugs.eclipse.org/bugs/show_bug.cgi?id=510685. As a workaround, specified paths of the commit command will contain
+                only changed and specified paths. If other changes are present, but the list of changed and specified paths is empty,
+                throw exception to prevent committing other paths. TODO Remove this check when the bug will be fixed.
+                */
+                if (!specified.isEmpty() && !(params.isAll() ? changed.isEmpty() : staged.isEmpty()) && specifiedChanged.isEmpty()) {
+                    throw new GitException(format("Changes are present but not changed path%s specified for commit.",
+                                                  specified.size() > 1 ? "s were" : " was"));
+                }
             }
 
+            // TODO add 'setAllowEmpty(true)' when https://bugs.eclipse.org/bugs/show_bug.cgi?id=510685 will be fixed
             CommitCommand commitCommand = getGit().commit()
                                                   .setCommitter(committerName, committerEmail)
                                                   .setAuthor(committerName, committerEmail)
                                                   .setMessage(message)
                                                   .setAll(params.isAll())
-                                                  .setAmend(params.isAmend())
-                                                  // Allow empty commits with specified paths with amend
-                                                  .setAllowEmpty(params.isAmend());
+                                                  .setAmend(params.isAmend());
 
-            // TODO change to 'specified.forEach(commitCommand::setOnly)' when https://bugs.eclipse.org/bugs/show_bug.cgi?id=510685 be fixed
+            // TODO change to 'specified.forEach(commitCommand::setOnly)' when https://bugs.eclipse.org/bugs/show_bug.cgi?id=510685 will be fixed
             // See description above.
             specifiedChanged.forEach(commitCommand::setOnly);
 
