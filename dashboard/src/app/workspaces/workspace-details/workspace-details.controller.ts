@@ -206,7 +206,7 @@ export class WorkspaceDetailsController {
     if (this.cheWorkspace.getWorkspaceByName(this.namespaceId, this.workspaceName)) {
       defer.resolve();
     } else {
-      this.cheWorkspace.fetchWorkspaceDetails(this.namespaceId + ':' + this.workspaceName).then(() => {
+      this.cheWorkspace.fetchWorkspaceDetails(this.namespaceId + '/' + this.workspaceName).then(() => {
         defer.resolve();
       }, (error: any) => {
         if (error.status === 304) {
