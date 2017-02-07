@@ -601,7 +601,7 @@ class JGitConnection implements GitConnection {
                 }
             }
 
-            // TODO add 'setAllowEmpty(true)' when https://bugs.eclipse.org/bugs/show_bug.cgi?id=510685 will be fixed
+            // TODO add 'setAllowEmpty(params.isAmend())' when https://bugs.eclipse.org/bugs/show_bug.cgi?id=510685 will be fixed
             CommitCommand commitCommand = getGit().commit()
                                                   .setCommitter(committerName, committerEmail)
                                                   .setAuthor(committerName, committerEmail)
