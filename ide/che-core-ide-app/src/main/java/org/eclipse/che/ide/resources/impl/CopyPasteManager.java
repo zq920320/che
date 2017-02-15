@@ -24,6 +24,7 @@ import org.eclipse.che.api.promises.client.Promise;
 import org.eclipse.che.api.promises.client.PromiseError;
 import org.eclipse.che.api.promises.client.PromiseProvider;
 import org.eclipse.che.api.promises.client.callback.AsyncPromiseHelper.RequestCall;
+import org.eclipse.che.ide.api.data.tree.Node;
 import org.eclipse.che.ide.api.dialogs.CancelCallback;
 import org.eclipse.che.ide.api.dialogs.ConfirmCallback;
 import org.eclipse.che.ide.api.dialogs.DialogFactory;
@@ -35,11 +36,13 @@ import org.eclipse.che.ide.api.resources.ResourceChangedEvent.ResourceChangedHan
 import org.eclipse.che.ide.api.resources.ResourceDelta;
 import org.eclipse.che.ide.api.resources.modification.ClipboardManager;
 import org.eclipse.che.ide.api.resources.modification.CutResourceMarker;
+import org.eclipse.che.ide.part.explorer.project.TreeResourceRevealer;
 import org.eclipse.che.ide.resource.Path;
-import org.eclipse.che.ide.resources.reveal.RevealResourceEvent;
 
 import static java.util.Arrays.copyOf;
 import static org.eclipse.che.api.promises.client.callback.AsyncPromiseHelper.createFromAsyncRequest;
+import static org.eclipse.che.ide.api.event.ng.FileTrackingEvent.newFileTrackingResumeEvent;
+import static org.eclipse.che.ide.api.event.ng.FileTrackingEvent.newFileTrackingSuspendEvent;
 import static org.eclipse.che.ide.api.notification.StatusNotification.DisplayMode.FLOAT_MODE;
 import static org.eclipse.che.ide.api.notification.StatusNotification.Status.FAIL;
 import static org.eclipse.che.ide.api.resources.ResourceDelta.REMOVED;
@@ -57,22 +60,25 @@ import static org.eclipse.che.ide.api.resources.ResourceDelta.REMOVED;
 @Beta
 @Singleton
 class CopyPasteManager implements ResourceChangedHandler {
-    private final PromiseProvider     promises;
-    private final DialogFactory       dialogFactory;
-    private final NotificationManager notificationManager;
-    private final EventBus            eventBus;
-    private       Resource[]          resources;
-    private       boolean             move;
+    private final PromiseProvider      promises;
+    private final DialogFactory        dialogFactory;
+    private final NotificationManager  notificationManager;
+    private final EventBus             eventBus;
+    private final TreeResourceRevealer treeResourceRevealer;
+    private       Resource[]           resources;
+    private       boolean              move;
 
     @Inject
     public CopyPasteManager(PromiseProvider promises,
                             DialogFactory dialogFactory,
                             NotificationManager notificationManager,
-                            EventBus eventBus) {
+                            EventBus eventBus,
+                            TreeResourceRevealer treeResourceRevealer) {
         this.promises = promises;
         this.dialogFactory = dialogFactory;
         this.notificationManager = notificationManager;
         this.eventBus = eventBus;
+        this.treeResourceRevealer = treeResourceRevealer;
 
         eventBus.addHandler(ResourceChangedEvent.getType(), this);
     }
@@ -101,9 +107,20 @@ class CopyPasteManager implements ResourceChangedHandler {
     protected void paste(Path destination) {
         final Promise<Void> promise = promises.resolve(null);
 
+        eventBus.fireEvent(newFileTrackingSuspendEvent());
+
+        final Path toReveal = destination.append(resources[resources.length - 1].getLocation().lastSegment());
+
         pasteSuccessively(promise, resources, 0, destination).then(new Operation<Void>() {
             @Override
             public void apply(Void ignored) throws OperationException {
+                treeResourceRevealer.reveal(toReveal).then(new Operation<Node>() {
+                    @Override
+                    public void apply(Node ignored) throws OperationException {
+                        eventBus.fireEvent(newFileTrackingResumeEvent());
+                    }
+                });
+
                 resources = new Resource[0];
             }
         });
@@ -141,7 +158,6 @@ class CopyPasteManager implements ResourceChangedHandler {
         return resource.move(destination).thenPromise(new Function<Resource, Promise<Void>>() {
             @Override
             public Promise<Void> apply(Resource resource) throws FunctionException {
-                eventBus.fireEvent(new RevealResourceEvent(resource));
                 return promises.resolve(null);
             }
         }).catchErrorPromise(new Function<PromiseError, Promise<Void>>() {
@@ -245,7 +261,6 @@ class CopyPasteManager implements ResourceChangedHandler {
         return resource.copy(destination).thenPromise(new Function<Resource, Promise<Void>>() {
             @Override
             public Promise<Void> apply(Resource resource) throws FunctionException {
-                eventBus.fireEvent(new RevealResourceEvent(resource));
                 return promises.resolve(null);
             }
         }).catchErrorPromise(new Function<PromiseError, Promise<Void>>() {

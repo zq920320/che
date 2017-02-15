@@ -247,6 +247,8 @@ public interface ProjectServiceClient {
      */
     Promise<TreeElement> getTree(Path path, int depth, boolean includeFiles);
 
+    Promise<List<ItemReference>> getChildren(Path path);
+
     /**
      * Searches an item(s) with the specified criteria given by {@code expression}.
      *

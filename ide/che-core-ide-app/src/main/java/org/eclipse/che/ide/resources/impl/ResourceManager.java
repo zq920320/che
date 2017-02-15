@@ -26,11 +26,13 @@ import org.eclipse.che.api.project.shared.dto.TreeElement;
 import org.eclipse.che.api.promises.client.Function;
 import org.eclipse.che.api.promises.client.FunctionException;
 import org.eclipse.che.api.promises.client.Promise;
+import org.eclipse.che.api.promises.client.PromiseError;
 import org.eclipse.che.api.promises.client.PromiseProvider;
 import org.eclipse.che.api.workspace.shared.dto.NewProjectConfigDto;
 import org.eclipse.che.api.workspace.shared.dto.ProjectConfigDto;
 import org.eclipse.che.api.workspace.shared.dto.ProjectProblemDto;
 import org.eclipse.che.api.workspace.shared.dto.SourceStorageDto;
+import org.eclipse.che.ide.DelayedTask;
 import org.eclipse.che.ide.api.app.AppContext;
 import org.eclipse.che.ide.api.editor.EditorAgent;
 import org.eclipse.che.ide.api.editor.EditorPartPresenter;
@@ -56,6 +58,7 @@ import org.eclipse.che.ide.context.AppContextImpl;
 import org.eclipse.che.ide.dto.DtoFactory;
 import org.eclipse.che.ide.resource.Path;
 import org.eclipse.che.ide.util.Arrays;
+import org.eclipse.che.ide.util.loging.Log;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -63,11 +66,13 @@ import java.util.List;
 import java.util.Map;
 
 import static com.google.common.base.Optional.absent;
+import static com.google.common.base.Optional.fromNullable;
 import static com.google.common.base.Optional.of;
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkNotNull;
 import static com.google.common.base.Preconditions.checkState;
 import static com.google.common.base.Strings.isNullOrEmpty;
+import static com.google.common.collect.Lists.newArrayList;
 import static java.lang.System.arraycopy;
 import static java.util.Arrays.copyOf;
 import static org.eclipse.che.ide.api.event.ng.FileTrackingEvent.newFileTrackingResumeEvent;
@@ -155,6 +160,12 @@ public final class ResourceManager {
      * Cached dto project configuration.
      */
     private ProjectConfigDto[] cachedConfigs;
+
+    private enum ExternalDeltaProcess {
+        ALLOWED, BLOCKED
+    }
+
+    private ExternalDeltaProcess deltaProcess;
 
     @Inject
     public ResourceManager(@Assisted DevMachine devMachine,
@@ -346,25 +357,43 @@ public final class ResourceManager {
                     @Override
                     public Promise<Folder> apply(final ItemReference reference) throws FunctionException {
 
-                        return getRemoteResources(parent, path.segmentCount(), true)
-                                .then(new Function<Resource[], Folder>() {
-                                    @Override
-                                    public Folder apply(Resource[] resources) throws FunctionException {
+                        return childrenOf(parent, true).then(new Function<Resource[], Folder>() {
+                            @Override
+                            public Folder apply(Resource[] resources) throws FunctionException {
+                                final Path referencePath = Path.valueOf(reference.getPath());
 
-                                        final Path referencePath = Path.valueOf(reference.getPath());
+                                for (Resource descendant : resources) {
+                                    if (descendant.getLocation().equals(referencePath)) {
+                                        eventBus.fireEvent(
+                                                new ResourceChangedEvent(new ResourceDeltaImpl(descendant, ADDED | DERIVED)));
 
-                                        for (Resource descendant : resources) {
-                                            if (descendant.getLocation().equals(referencePath)) {
-                                                eventBus.fireEvent(
-                                                        new ResourceChangedEvent(new ResourceDeltaImpl(descendant, ADDED | DERIVED)));
-
-                                                return (Folder)descendant;
-                                            }
-                                        }
-
-                                        throw new IllegalArgumentException("Failed to locate created folder");
+                                        return (Folder)descendant;
                                     }
-                                });
+                                }
+
+                                throw new IllegalArgumentException("Failed to locate created folder");
+                            }
+                        });
+
+//                        return getRemoteResources(parent, path.segmentCount(), true)
+//                                .then(new Function<Resource[], Folder>() {
+//                                    @Override
+//                                    public Folder apply(Resource[] resources) throws FunctionException {
+//
+//                                        final Path referencePath = Path.valueOf(reference.getPath());
+//
+//                                        for (Resource descendant : resources) {
+//                                            if (descendant.getLocation().equals(referencePath)) {
+//                                                eventBus.fireEvent(
+//                                                        new ResourceChangedEvent(new ResourceDeltaImpl(descendant, ADDED | DERIVED)));
+//
+//                                                return (Folder)descendant;
+//                                            }
+//                                        }
+//
+//                                        throw new IllegalArgumentException("Failed to locate created folder");
+//                                    }
+//                                });
                     }
                 });
             }
@@ -374,35 +403,80 @@ public final class ResourceManager {
     Promise<File> createFile(final Container parent, final String name, final String content) {
         checkArgument(checkFileName(name), "Invalid file name");
 
+        eventBus.fireEvent(newFileTrackingSuspendEvent());
+        Log.info(getClass(), "suspend");
+        deltaProcess = ExternalDeltaProcess.BLOCKED;
+
         return findResource(parent.getLocation().append(name), true).thenPromise(new Function<Optional<Resource>, Promise<File>>() {
             @Override
             public Promise<File> apply(Optional<Resource> resource) throws FunctionException {
                 checkState(!resource.isPresent(), "Resource already exists");
                 checkArgument(!parent.getLocation().isRoot(), "Failed to create file in workspace root");
 
+
+
                 return ps.createFile(parent.getLocation().append(name), content).thenPromise(new Function<ItemReference, Promise<File>>() {
                     @Override
                     public Promise<File> apply(final ItemReference reference) throws FunctionException {
 
-                        return getRemoteResources(parent, DEPTH_ONE, true)
-                                .then(new Function<Resource[], File>() {
+                        return findResource(Path.valueOf(reference.getPath()), true).then(new Function<Optional<Resource>, File>() {
+                            @Override
+                            public File apply(Optional<Resource> arg) throws FunctionException {
+                                checkArgument(arg.isPresent(), "Failed to locate created file");
+
+//                                eventBus.fireEvent(
+//                                        new ResourceChangedEvent(new ResourceDeltaImpl(arg.get(), ADDED | DERIVED)));
+
+                                new DelayedTask() {
                                     @Override
-                                    public File apply(Resource[] resources) throws FunctionException {
-
-                                        final Path referencePath = Path.valueOf(reference.getPath());
-
-                                        for (Resource descendant : resources) {
-                                            if (descendant.getLocation().equals(referencePath)) {
-                                                eventBus.fireEvent(
-                                                        new ResourceChangedEvent(new ResourceDeltaImpl(descendant, ADDED | DERIVED)));
-
-                                                return (File)descendant;
-                                            }
-                                        }
-
-                                        throw new IllegalArgumentException("Failed to locate created file");
+                                    public void onExecute() {
+                                        eventBus.fireEvent(newFileTrackingResumeEvent());
+                                        Log.info(getClass(), "resume");
+                                        deltaProcess = ExternalDeltaProcess.ALLOWED;
                                     }
-                                });
+                                }.delay(2000);
+
+                                return arg.get().asFile();
+                            }
+                        });
+
+//                        return childrenOf(parent, true).then(new Function<Resource[], File>() {
+//                            @Override
+//                            public File apply(Resource[] resources) throws FunctionException {
+//                                final Path referencePath = Path.valueOf(reference.getPath());
+//
+//                                for (Resource descendant : resources) {
+//                                    if (descendant.getLocation().equals(referencePath)) {
+//                                        eventBus.fireEvent(
+//                                                new ResourceChangedEvent(new ResourceDeltaImpl(descendant, ADDED | DERIVED)));
+//
+//                                        return (File)descendant;
+//                                    }
+//                                }
+//
+//                                throw new IllegalArgumentException("Failed to locate created file");
+//                            }
+//                        });
+
+//                        return getRemoteResources(parent, DEPTH_ONE, true)
+//                                .then(new Function<Resource[], File>() {
+//                                    @Override
+//                                    public File apply(Resource[] resources) throws FunctionException {
+//
+//                                        final Path referencePath = Path.valueOf(reference.getPath());
+//
+//                                        for (Resource descendant : resources) {
+//                                            if (descendant.getLocation().equals(referencePath)) {
+//                                                eventBus.fireEvent(
+//                                                        new ResourceChangedEvent(new ResourceDeltaImpl(descendant, ADDED | DERIVED)));
+//
+//                                                return (File)descendant;
+//                                            }
+//                                        }
+//
+//                                        throw new IllegalArgumentException("Failed to locate created file");
+//                                    }
+//                                });
                     }
                 });
             }
@@ -859,16 +933,127 @@ public final class ResourceManager {
     }
 
     Promise<Resource[]> childrenOf(final Container container, boolean forceUpdate) {
+
+
         if (forceUpdate) {
-            return getRemoteResources(container, DEPTH_ONE, true);
+            return ps.getChildren(container.getLocation()).then(new Function<List<ItemReference>, Resource[]>() {
+                @Override
+                public Resource[] apply(List<ItemReference> arg) throws FunctionException {
+
+                    List<Resource> resources = newArrayList();
+
+                    for (ItemReference reference : arg) {
+                        final Resource resource = newResourceFrom(reference);
+
+                        store.dispose(resource.getLocation(), false);
+                        store.register(resource);
+
+                        if (resource.getResourceType() == PROJECT) {
+                            final Optional<ProjectConfigDto> optionalConfig = findProjectConfigDto(resource.getLocation());
+
+                            if (optionalConfig.isPresent()) {
+                                final Optional<ProblemProjectMarker> optionalMarker = getProblemMarker(optionalConfig.get());
+
+                                if (optionalMarker.isPresent()) {
+                                    resource.addMarker(optionalMarker.get());
+                                }
+                            }
+                        }
+
+                        resources.add(resource);
+                    }
+
+                    return resources.toArray(new Resource[resources.size()]);
+                }
+            });
+//            return getRemoteResources(container, DEPTH_ONE, true);
         }
 
         final Optional<Resource[]> optChildren = store.get(container.getLocation());
 
         if (optChildren.isPresent()) {
-            return promises.resolve(optChildren.get());
+            return ps.getChildren(container.getLocation()).thenPromise(new Function<List<ItemReference>, Promise<Resource[]>>() {
+                @Override
+                public Promise<Resource[]> apply(List<ItemReference> arg) throws FunctionException {
+
+                    if (optChildren.get().length == arg.size()) {
+                        return promises.resolve(optChildren.get());
+                    }
+
+                    for (Resource resource : optChildren.get()) {
+                        store.dispose(resource.getLocation(), false);
+                    }
+
+                    List<Resource> resources = newArrayList();
+
+                    for (ItemReference reference : arg) {
+                        final Resource resource = newResourceFrom(reference);
+
+                        store.dispose(resource.getLocation(), false);
+                        store.register(resource);
+
+                        if (resource.getResourceType() == PROJECT) {
+                            final Optional<ProjectConfigDto> optionalConfig = findProjectConfigDto(resource.getLocation());
+
+                            if (optionalConfig.isPresent()) {
+                                final Optional<ProblemProjectMarker> optionalMarker = getProblemMarker(optionalConfig.get());
+
+                                if (optionalMarker.isPresent()) {
+                                    resource.addMarker(optionalMarker.get());
+                                }
+                            }
+                        }
+
+                        resources.add(resource);
+                    }
+
+                    return promises.resolve(resources.toArray(new Resource[resources.size()]));
+
+//                    return childrenOf(container, true);
+                }
+            });
+//            return promises.resolve(optChildren.get());
         } else {
-            return promises.resolve(NO_RESOURCES);
+            return ps.getChildren(container.getLocation()).thenPromise(new Function<List<ItemReference>, Promise<Resource[]>>() {
+                @Override
+                public Promise<Resource[]> apply(List<ItemReference> arg) throws FunctionException {
+                    if (arg.isEmpty()) {
+                        return promises.resolve(NO_RESOURCES);
+                    }
+
+//                    for (Resource resource : optChildren.get()) {
+//                        store.dispose(resource.getLocation(), false);
+//                    }
+
+                    List<Resource> resources = newArrayList();
+
+                    for (ItemReference reference : arg) {
+                        final Resource resource = newResourceFrom(reference);
+
+                        store.dispose(resource.getLocation(), false);
+                        store.register(resource);
+
+                        if (resource.getResourceType() == PROJECT) {
+                            final Optional<ProjectConfigDto> optionalConfig = findProjectConfigDto(resource.getLocation());
+
+                            if (optionalConfig.isPresent()) {
+                                final Optional<ProblemProjectMarker> optionalMarker = getProblemMarker(optionalConfig.get());
+
+                                if (optionalMarker.isPresent()) {
+                                    resource.addMarker(optionalMarker.get());
+                                }
+                            }
+                        }
+
+                        resources.add(resource);
+                    }
+
+                    return promises.resolve(resources.toArray(new Resource[resources.size()]));
+
+//                    return childrenOf(container, true);
+                }
+            });
+//            return promises.resolve(NO_RESOURCES);
         }
     }
 
@@ -896,16 +1081,57 @@ public final class ResourceManager {
 
         final int seekDepth = absolutePath.segmentCount() - 1;
 
-        return getRemoteResources((Container)project, seekDepth, true).then(new Function<Resource[], Optional<Resource>>() {
+        return getResource(absolutePath).then(new Function<Resource, Optional<Resource>>() {
             @Override
-            public Optional<Resource> apply(Resource[] resources) throws FunctionException {
-                for (Resource resource : resources) {
-                    if (absolutePath.equals(resource.getLocation())) {
-                        return of(resource);
+            public Optional<Resource> apply(Resource arg) throws FunctionException {
+                return fromNullable(arg);
+            }
+        });
+
+//        return getRemoteResources((Container)project, seekDepth, true).then(new Function<Resource[], Optional<Resource>>() {
+//            @Override
+//            public Optional<Resource> apply(Resource[] resources) throws FunctionException {
+//                for (Resource resource : resources) {
+//                    if (absolutePath.equals(resource.getLocation())) {
+//                        return of(resource);
+//                    }
+//                }
+//
+//                return absent();
+//            }
+//        });
+    }
+
+    private Promise<Resource> getResource(final Path absPath) {
+        return ps.getItem(absPath).then(new Function<ItemReference, Resource>() {
+            @Override
+            public Resource apply(ItemReference itemReference) throws FunctionException {
+
+                final Resource resource = newResourceFrom(itemReference);
+
+                if (resource.getResourceType() == PROJECT) {
+                    final Optional<ProjectConfigDto> optionalConfig = findProjectConfigDto(resource.getLocation());
+
+                    if (optionalConfig.isPresent()) {
+                        final Optional<ProblemProjectMarker> optionalMarker = getProblemMarker(optionalConfig.get());
+
+                        if (optionalMarker.isPresent()) {
+                            resource.addMarker(optionalMarker.get());
+                        }
                     }
                 }
 
-                return absent();
+                store.dispose(resource.getLocation(), false);
+                store.register(resource);
+
+                return resource;
+            }
+        }).catchError(new Function<PromiseError, Resource>() {
+            @Override
+            public Resource apply(PromiseError arg) throws FunctionException {
+                Log.info(getClass(), "Resource for '" + absPath + "' wasn't found.");
+
+                return null;
             }
         });
     }
@@ -1038,6 +1264,10 @@ public final class ResourceManager {
 
     protected Promise<ResourceDelta[]> synchronize(final ResourceDelta[] deltas) {
 
+        if (deltaProcess == ExternalDeltaProcess.BLOCKED) {
+            return promises.resolve(new ResourceDelta[0]);
+        }
+
         Promise<Void> promise = promises.resolve(null);
 
         for (final ResourceDelta delta : deltas) {
@@ -1124,6 +1354,7 @@ public final class ResourceManager {
     }
 
     private Promise<Void> onExternalDeltaAdded(final ResourceDelta delta) {
+        Log.info(getClass(), "ahtung");
         return findResource(delta.getToPath(), true).then(new Function<Optional<Resource>, Void>() {
             @Override
             public Void apply(final Optional<Resource> resource) throws FunctionException {

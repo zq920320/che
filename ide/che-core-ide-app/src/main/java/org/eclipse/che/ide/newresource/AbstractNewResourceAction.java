@@ -109,7 +109,7 @@ public abstract class AbstractNewResourceAction extends AbstractPerspectiveActio
             @Override
             public void apply(File newFile) throws OperationException {
                 eventBus.fireEvent(FileEvent.createOpenFileEvent(newFile));
-                eventBus.fireEvent(new RevealResourceEvent(newFile));
+//                eventBus.fireEvent(new RevealResourceEvent(newFile));
             }
         }).catchError(new Operation<PromiseError>() {
             @Override

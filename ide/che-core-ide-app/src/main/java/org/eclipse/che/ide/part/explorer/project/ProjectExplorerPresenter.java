@@ -296,7 +296,7 @@ public class ProjectExplorerPresenter extends BasePresenter implements ActionDel
                         ((ResourceNode)node).setData(delta.getResource());
                         tree.getNodeStorage().reIndexNode(oldId, node);
                         tree.refresh(node);
-                        updateTask.submit(delta.getResource().getLocation());
+//                        updateTask.submit(delta.getResource().getLocation());
                     }
                 }
             }

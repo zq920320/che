@@ -73,6 +73,7 @@ public class ProjectServiceClientImpl implements ProjectServiceClient {
 
     private static final String ITEM     = "/item";
     private static final String TREE     = "/tree";
+    private static final String CHILDREN     = "/children";
     private static final String MOVE     = "/move";
     private static final String COPY     = "/copy";
     private static final String FOLDER   = "/folder";
@@ -318,6 +319,15 @@ public class ProjectServiceClientImpl implements ProjectServiceClient {
         return reqFactory.createGetRequest(url)
                          .header(ACCEPT, MimeType.APPLICATION_JSON)
                          .send(unmarshaller.newUnmarshaller(TreeElement.class));
+    }
+
+    @Override
+    public Promise<List<ItemReference>> getChildren(Path path) {
+        final String url = getBaseUrl() + CHILDREN + path(path.toString());
+
+        return reqFactory.createGetRequest(url)
+                         .header(ACCEPT, MimeType.APPLICATION_JSON)
+                         .send(unmarshaller.newListUnmarshaller(ItemReference.class));
     }
 
     /** {@inheritDoc} */
