@@ -186,19 +186,6 @@ public class CommitTest {
     }
 
     @Test(dataProvider = "GitConnectionFactory", dataProviderClass = org.eclipse.che.git.impl.GitConnectionFactoryProvider.class,
-          expectedExceptions = GitException.class,
-          expectedExceptionsMessageRegExp = "error: pathspec 'newFile' did not match any file.* known to git\\.\n")
-    public void testCommitWithSpecifiedUntrackedChanges(GitConnectionFactory connectionFactory) throws GitException, IOException {
-        //given
-        GitConnection connection = connectToGitRepositoryWithContent(connectionFactory, repository);
-        //Prepare untracked file that will be present in specified paths for commit
-        addFile(connection, "newFile", "content");
-
-        //when
-        connection.commit(CommitParams.create("test commit").withFiles(singletonList("newFile")));
-    }
-
-    @Test(dataProvider = "GitConnectionFactory", dataProviderClass = org.eclipse.che.git.impl.GitConnectionFactoryProvider.class,
           expectedExceptions = GitException.class, expectedExceptionsMessageRegExp = "Nothing to commit, working directory clean")
     public void testCommitWithCleanIndex(GitConnectionFactory connectionFactory) throws GitException, IOException {
         //given

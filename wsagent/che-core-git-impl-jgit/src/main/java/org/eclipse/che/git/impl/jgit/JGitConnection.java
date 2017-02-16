@@ -180,8 +180,6 @@ import static java.nio.file.attribute.PosixFilePermission.OWNER_READ;
 import static java.nio.file.attribute.PosixFilePermission.OWNER_WRITE;
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
 import static java.util.concurrent.TimeUnit.SECONDS;
-import static java.util.stream.Collectors.joining;
-import static java.util.stream.Collectors.toList;
 import static org.eclipse.che.api.git.shared.BranchListMode.LIST_ALL;
 import static org.eclipse.che.api.git.shared.BranchListMode.LIST_LOCAL;
 import static org.eclipse.che.api.git.shared.BranchListMode.LIST_REMOTE;
@@ -559,22 +557,15 @@ class JGitConnection implements GitConnection {
             Status status = status(StatusFormat.SHORT);
             List<String> specified = params.getFiles();
 
-            // Check that specified paths don't contain untracked paths
-            String errorMessage = specified.stream()
-                                           .filter(path -> status.getUntracked().stream().anyMatch(u -> u.startsWith(path)))
-                                           .map(path -> format("error: pathspec '%s' did not match any file(s) known to git.\n", path))
-                                           .collect(joining());
-            if (!errorMessage.isEmpty()) {
-                throw new GitException(errorMessage);
-            }
-
             List<String> staged = new ArrayList<>();
             staged.addAll(status.getAdded());
             staged.addAll(status.getChanged());
             staged.addAll(status.getRemoved());
+
             List<String> changed = new ArrayList<>(staged);
             changed.addAll(status.getModified());
             changed.addAll(status.getMissing());
+
             List<String> specifiedChanged = specified.stream()
                                                      .filter(path -> changed.stream().anyMatch(c -> c.startsWith(path)))
                                                      .collect(Collectors.toList());
