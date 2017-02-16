@@ -478,6 +478,11 @@
             </dependency>
             <dependency>
                 <groupId>org.eclipse.che.lib</groupId>
+                <artifactId>che-orion-editor</artifactId>
+                <version>${che.lib.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.eclipse.che.lib</groupId>
                 <artifactId>che-swagger-module</artifactId>
                 <version>${che.lib.version}</version>
             </dependency>
@@ -710,6 +715,11 @@
             </dependency>
             <dependency>
                 <groupId>org.eclipse.che.plugin</groupId>
+                <artifactId>che-plugin-maven-wsmaster</artifactId>
+                <version>${che.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.eclipse.che.plugin</groupId>
                 <artifactId>che-plugin-nodejs-debugger-ide</artifactId>
                 <version>${che.version}</version>
             </dependency>
@@ -782,6 +792,11 @@
                 <groupId>org.eclipse.che.plugin</groupId>
                 <artifactId>che-plugin-python-lang-shared</artifactId>
                 <version>${che.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.eclipse.che.plugin</groupId>
+                <artifactId>che-plugin-requirejs</artifactId>
+                <version>${project.version}</version>
             </dependency>
             <dependency>
                 <groupId>org.eclipse.che.plugin</groupId>
@@ -947,6 +962,11 @@
             <dependency>
                 <groupId>org.eclipse.che.plugin</groupId>
                 <artifactId>org.eclipse.ui.ide</artifactId>
+                <version>${che.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.eclipse.che.plugin</groupId>
+                <artifactId>plugin-terminal-ui</artifactId>
                 <version>${che.version}</version>
             </dependency>
             <dependency>

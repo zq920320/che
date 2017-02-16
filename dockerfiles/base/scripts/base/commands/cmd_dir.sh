@@ -26,6 +26,10 @@ pre_cmd_dir() {
   load_utilities_images_if_not_done
 }
 
+post_cmd_dir() {
+  :
+}
+
 cmd_dir() {
   CHE_LOCAL_REPO=false
   if [[ "${CHEDIR_MOUNT}" != "not set" ]]; then
@@ -36,6 +40,6 @@ cmd_dir() {
     warning "':/chedir' not mounted - using ${DATA_MOUNT} as source location"
   fi
 
-  docker_run -it -v ${HOST_FOLDER_TO_USE}:${HOST_FOLDER_TO_USE} \
+  docker_run $(get_docker_run_terminal_options) -v ${HOST_FOLDER_TO_USE}:${HOST_FOLDER_TO_USE} \
             ${UTILITY_IMAGE_CHEDIR} ${HOST_FOLDER_TO_USE} "$@"
 }

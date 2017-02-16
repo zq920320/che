@@ -31,10 +31,46 @@ cli_init() {
     return 2;
   fi
 
+  CLI_ENV=$(docker inspect --format='{{.Config.Env}}' $(get_this_container_id))
+  CLI_ENV=${CLI_ENV#*[}
+  CLI_ENV=${CLI_ENV%*]}
+  IFS=' ' read -r -a CLI_ENV_ARRAY <<< "$CLI_ENV"
+
   if is_initialized; then 
     CHE_HOST_LOCAL=$(get_value_of_var_from_env_file ${CHE_PRODUCT_NAME}_HOST)
-    if [[ "${CHE_HOST}" != "${CHE_HOST_LOCAL}" ]]; then
-      warning "${CHE_PRODUCT_NAME}_HOST (${CHE_HOST}) overridden by ${CHE_ENVIRONMENT_FILE} (${CHE_HOST_LOCAL})"
+    CHE_HOST_ENV=$(get_value_of_var_from_env ${CHE_PRODUCT_NAME}_HOST)
+    if [[ "${CHE_HOST_ENV}" != "" ]] && 
+       [[ "${CHE_HOST_ENV}" != "${CHE_HOST_LOCAL}" ]]; then
+      warning "cli" "'${CHE_PRODUCT_NAME}_HOST=${CHE_HOST_ENV}' from command line overriding '${CHE_PRODUCT_NAME}_HOST=${CHE_HOST_LOCAL}' from ${CHE_ENVIRONMENT_FILE}"
+      CHE_HOST=$CHE_HOST_ENV
+    fi
+
+    if [[ "${CHE_HOST_ENV}" = "" ]] && 
+       [[ "${CHE_HOST_LOCAL}" != "" ]]; then
+      CHE_HOST=${CHE_HOST_LOCAL}
+
+      if [[ "${CHE_HOST}" != "${GLOBAL_HOST_IP}" ]]; then
+        warning "cli" "'${CHE_PRODUCT_NAME}_HOST=${CHE_HOST_LOCAL}' is != discovered IP '${GLOBAL_HOST_IP}'"
+      fi
+    fi
+
+    CHE_PORT_LOCAL=$(get_value_of_var_from_env_file ${CHE_PRODUCT_NAME}_PORT)
+    CHE_PORT_ENV=$(get_value_of_var_from_env ${CHE_PRODUCT_NAME}_PORT)
+    
+    if [[ "${CHE_PORT_ENV}" != "" ]] &&
+       [[ "${CHE_PORT_LOCAL}" != "" ]] && 
+       [[ "${CHE_PORT_ENV}" != "${CHE_PORT_LOCAL}" ]]; then
+      warning "cli" "'${CHE_PRODUCT_NAME}_PORT=${CHE_PORT_ENV}' from command line overriding '${CHE_PRODUCT_NAME}_PORT=${CHE_PORT_LOCAL}' from ${CHE_ENVIRONMENT_FILE}"
+      CHE_PORT=$CHE_PORT_ENV
+    fi
+
+    if [[ "${CHE_PORT_ENV}" = "" ]] && 
+       [[ "${CHE_PORT_LOCAL}" != "" ]]; then
+      CHE_PORT=${CHE_PORT_LOCAL}
+
+      if [[ "${CHE_PORT}" != "${DEFAULT_CHE_PORT}" ]]; then
+        CHE_PORT=${CHE_PORT_LOCAL}
+      fi
     fi
   fi
 
@@ -198,19 +234,6 @@ get_image_version() {
   echo "$CHE_IMAGE_VERSION"
 }
 
-less_than() {
-  for (( i=0; i<${#1}; i++ )); do
-    if [[ ${1:$i:1} != ${2:$i:1} ]]; then
-      if [ ${1:$i:1} -lt ${2:$i:1} ]; then
-        return 0
-      else
-        return 1
-      fi
-    fi
-  done
-  return 1
-}
-
 # Check if a version is < than another version (provide like for example : version_lt 5.0 5.1)
 version_lt() {
  test "$(printf '%s\n' "$@" | sort -V | head -n 1)" == "$1";
@@ -304,6 +327,18 @@ get_value_of_var_from_env_file() {
   local LOOKUP_LOCAL=$(docker_run --env-file="${REFERENCE_CONTAINER_ENVIRONMENT_FILE}" \
                                 ${BOOTSTRAP_IMAGE_ALPINE} sh -c "echo \$$1")
   echo $LOOKUP_LOCAL
-
 }
 
+# Returns the value of variable from environment array.
+get_value_of_var_from_env() {
+  for element in "${CLI_ENV_ARRAY[@]}" 
+  do
+    var1=$(echo $element | cut -f1 -d=)
+    var2=$(echo $element | cut -f2 -d=)
+
+    if [ $var1 = $1 ]; then
+      echo $var2
+    fi
+  done
+  echo ""
+}

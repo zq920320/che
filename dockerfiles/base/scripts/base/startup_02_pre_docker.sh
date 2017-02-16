@@ -17,19 +17,31 @@ log() {
 }
 
 warning() {
-  if is_warning; then
-    printf  "${YELLOW}WARN:${NC} %s\n" "${1}"
+  if [ -z ${2+x} ]; then
+    local PRINT_COMMAND=""
+    local PRINT_STATEMENT=$1
+  else
+    local PRINT_COMMAND="($CHE_MINI_PRODUCT_NAME $1): "
+    local PRINT_STATEMENT=$2
   fi
-  log $(printf "WARN: %s\n" "${1}")
+
+  if is_warning; then
+    printf "${YELLOW}WARN:${NC} %b%b\n" \
+              "${PRINT_COMMAND}" \
+              "${PRINT_STATEMENT}"
+  fi
+  log $(printf "INFO: %b %b\n" \
+        "${PRINT_COMMAND}" \
+        "${PRINT_STATEMENT}")
 }
 
 info() {
   if [ -z ${2+x} ]; then
-    PRINT_COMMAND=""
-    PRINT_STATEMENT=$1
+    local PRINT_COMMAND=""
+    local PRINT_STATEMENT=$1
   else
-    PRINT_COMMAND="($CHE_MINI_PRODUCT_NAME $1): "
-    PRINT_STATEMENT=$2
+    local PRINT_COMMAND="($CHE_MINI_PRODUCT_NAME $1): "
+    local PRINT_STATEMENT=$2
   fi
   if is_info; then
     printf "${GREEN}INFO:${NC} %b%b\n" \
@@ -223,6 +235,14 @@ get_command_help() {
   fi
 }
 
+skip_scripts() {
+  if [ "${CHE_SKIP_SCRIPTS}" = "true" ]; then
+    return 0
+  else
+    return 1
+  fi
+}
+
 init_logging() {
   # Initialize CLI folder
   CLI_DIR=$CHE_CONTAINER_ROOT
@@ -362,10 +382,23 @@ check_docker_networking() {
 check_interactive() {
   # Detect and verify that the CLI container was started with -it option.
   TTY_ACTIVATED=true
+  CHE_CLI_IS_INTERACTIVE=true
+
+  # check if no terminal
   if [ ! -t 1 ]; then
     TTY_ACTIVATED=false
+    CHE_CLI_IS_INTERACTIVE=false
     warning "Did not detect TTY - interactive mode disabled"
+  else
+    # There is a terminal, check if it's in interactive mode
+    CHE_CLI_IS_INTERACTIVE=$(docker inspect --format='{{.Config.AttachStdin}}' $(get_this_container_id))
+    if [[ ${CHE_CLI_IS_INTERACTIVE} == "false" ]]; then
+      CHE_CLI_IS_INTERACTIVE=false
+      warning "Did detect TTY but not in interactive mode"
+    fi
+
   fi
+
 }
 
 check_mounts() {
@@ -444,7 +477,7 @@ check_mounts() {
   ### DEV MODE VARIABLES
   CHE_LOCAL_REPO=false
   if [[ "${REPO_MOUNT}" != "not set" ]]; then
-    info "cli" ":/repo mounted - using assembly and manifests from your local repository"
+    info "cli" "/repo mounted - using assembly and manifests from your local repository"
 
     CHE_LOCAL_REPO=true
     CHE_HOST_DEVELOPMENT_REPO="${REPO_MOUNT}"
