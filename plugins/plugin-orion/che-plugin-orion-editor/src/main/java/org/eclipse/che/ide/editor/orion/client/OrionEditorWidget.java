@@ -847,10 +847,7 @@ public class OrionEditorWidget extends Composite implements EditorWidget,
             var callback = this.@org.eclipse.che.ide.editor.orion.client.OrionEditorWidget.InputCallback::callback;
             callback(value);
         }-*/;
-
     }
-
-    ;
 
     private void askLineNumber(String title, String text, String defaultValue, final JavaScriptObject callback) {
         if (defaultValue == null) {
@@ -863,5 +860,4 @@ public class OrionEditorWidget extends Composite implements EditorWidget,
 
         dialogFactory.createInputDialog(title, text, defaultValue, 0, defaultValue.length(), new InputCallback(callback), null).show();
     }
-
 }

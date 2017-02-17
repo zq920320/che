@@ -14,7 +14,7 @@ import com.google.gwtmockito.GwtMockitoTestRunner;
 
 import org.eclipse.che.ide.api.action.ActionEvent;
 import org.eclipse.che.ide.api.editor.EditorAgent;
-import org.eclipse.che.ide.api.editor.EditorPartPresenter;
+import org.eclipse.che.ide.api.editor.texteditor.TextEditor;
 import org.eclipse.che.ide.ext.java.client.JavaLocalizationConstant;
 import org.eclipse.che.ide.ext.java.client.organizeimports.OrganizeImportsPresenter;
 import org.junit.Before;
@@ -42,7 +42,7 @@ public class OrganizeImportsActionTest {
     private ActionEvent              actionEvent;
 
     @Mock
-    private EditorPartPresenter editor;
+    private TextEditor editor;
 
     @Mock(answer = Answers.RETURNS_MOCKS)
     private JavaLocalizationConstant locale;
