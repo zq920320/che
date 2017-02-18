@@ -600,9 +600,10 @@ class JGitConnection implements GitConnection {
                                                   .setAll(params.isAll())
                                                   .setAmend(params.isAmend());
 
-            // TODO change to 'specified.forEach(commitCommand::setOnly)' when https://bugs.eclipse.org/bugs/show_bug.cgi?id=510685 will be fixed
-            // See description above.
-            specifiedChanged.forEach(commitCommand::setOnly);
+            if (!params.isAll()) {
+                // TODO change to 'specified.forEach(commitCommand::setOnly)' when https://bugs.eclipse.org/bugs/show_bug.cgi?id=510685 will be fixed. See description above.
+                specifiedChanged.forEach(commitCommand::setOnly);
+            }
 
             // Check if repository is configured with Gerrit Support
             String gerritSupportConfigValue = repository.getConfig().getString(ConfigConstants.CONFIG_GERRIT_SECTION, null,
