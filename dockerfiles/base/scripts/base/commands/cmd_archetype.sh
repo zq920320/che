@@ -68,7 +68,7 @@ pre_cmd_archetype() {
 
 ##############################
 # REPLACE THIS WITH $(get_image_version) AFTER CI SYSTEMS GENERATING
-  ARCHETYPE_VERSION=5.3.0-SNAPSHOT   
+  ARCHETYPE_VERSION=5.4.0-SNAPSHOT
   ASSEMBLY_GROUP="com.sample"
   ASSEMBLY_ID="assembly"
   SKIP_INTERACTIVE=false

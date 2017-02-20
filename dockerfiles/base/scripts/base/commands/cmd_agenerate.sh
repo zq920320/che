@@ -70,7 +70,7 @@ cmd_agenerate() {
 
   docker run -it --rm --name generate-che              \
        -v /var/run/docker.sock:/var/run/docker.sock \
-       -v "${M2_MOUNT}":/home/user/.m2         \
+       -v "${M2_MOUNT}/repository":/home/user/.m2/repository         \
        -v "${ARCHETYPE_MOUNT}":/home/user/che-build         \
        -w /home/user/che-build                              \
          ${UTILITY_IMAGE_DEV}                          \
