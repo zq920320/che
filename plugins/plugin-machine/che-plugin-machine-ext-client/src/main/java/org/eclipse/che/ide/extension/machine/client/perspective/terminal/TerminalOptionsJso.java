@@ -24,7 +24,8 @@ class TerminalOptionsJso extends Jso{
             cols: 80,
             rows: 24,
             screenKeys: true,
-            focusOnOpen: false
+            focusOnOpen: false,
+            cancelEvents: true
         }
     }-*/;
 
